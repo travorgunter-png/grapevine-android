@@ -32,41 +32,77 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ZIP_FILE="Grapevine-Android-FINAL.zip"
-          test -f "$ZIP_FILE"
-          rm -rf .grapevine-build
-          mkdir -p .grapevine-build
-          unzip -q "$ZIP_FILE" -d .grapevine-build
 
-          test -f .grapevine-build/settings.gradle
-          test -f .grapevine-build/build.gradle
-          test -f .grapevine-build/app/build.gradle
-          test -f .grapevine-build/app/src/main/AndroidManifest.xml
-          test -f .grapevine-build/app/src/main/java/com/grapevine/app/MainActivity.java
+          echo "Files in repository:"
+          find . -maxdepth 3 -type f | sort
 
-      - name: Build Grapevine APK
-        working-directory: .grapevine-build
+          ZIP_FILE="$(find . -maxdepth 3 -type f -iname 'Grapevine-Android-V12-VERIFICATION-BADGE-FIX.zip' -print -quit || true)"
+
+          if [ -z "$ZIP_FILE" ]; then
+            ZIP_FILE="$(find . -maxdepth 3 -type f -iname '*.zip' -print -quit || true)"
+          fi
+
+          if [ -z "$ZIP_FILE" ]; then
+            echo "ERROR: No Grapevine ZIP file was found."
+            exit 1
+          fi
+
+          echo "Using ZIP: $ZIP_FILE"
+
+          rm -rf grapevine-source
+          mkdir -p grapevine-source
+
+          unzip -q "$ZIP_FILE" -d grapevine-source
+
+          echo "Extracted files:"
+          find grapevine-source -maxdepth 4 -type f | sort
+
+          PROJECT_DIR="$(find grapevine-source -name settings.gradle -o -name settings.gradle.kts | head -n 1 | xargs -r dirname)"
+
+          if [ -z "$PROJECT_DIR" ]; then
+            PROJECT_DIR="$(find grapevine-source -type f -name gradlew -print -quit | xargs -r dirname)"
+          fi
+
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "ERROR: Android/Gradle project could not be found after extraction."
+            exit 1
+          fi
+
+          echo "Android project found at: $PROJECT_DIR"
+
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+      - name: Make Gradle executable
         shell: bash
         run: |
-          set -euo pipefail
-          gradle --no-daemon --stacktrace assembleDebug
+          chmod +x "$PROJECT_DIR/gradlew"
+
+      - name: Build Grapevine APK
+        shell: bash
+        run: |
+          cd "$PROJECT_DIR"
+          ./gradlew clean assembleDebug --stacktrace
 
       - name: Locate and copy APK
         shell: bash
         run: |
           set -euo pipefail
-          APK="$(find "$GITHUB_WORKSPACE/.grapevine-build" -type f -path '*/build/outputs/apk/debug/*.apk' | head -n 1)"
-          test -n "$APK"
-          test -s "$APK"
+
+          APK="$(find "$PROJECT_DIR" -type f -name '*.apk' -print -quit)"
+
+          if [ -z "$APK" ]; then
+            echo "ERROR: APK was not produced."
+            exit 1
+          fi
+
           echo "APK found: $APK"
-          cp "$APK" "$GITHUB_WORKSPACE/Grapevine.apk"
-          test -s "$GITHUB_WORKSPACE/Grapevine.apk"
-          ls -lh "$GITHUB_WORKSPACE/Grapevine.apk"
+
+          mkdir -p "$GITHUB_WORKSPACE/apk-output"
+          cp "$APK" "$GITHUB_WORKSPACE/apk-output/Grapevine-V12.apk"
 
       - name: Upload Grapevine APK
         uses: actions/upload-artifact@v4
         with:
-          name: Grapevine-APK
-          path: Grapevine.apk
+          name: Grapevine-V12-APK
+          path: apk-output/Grapevine-V12.apk
           if-no-files-found: error
-          retention-days: 30
