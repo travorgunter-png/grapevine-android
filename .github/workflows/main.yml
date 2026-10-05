@@ -27,24 +27,75 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Unpack complete Android source
+      - name: Find and unpack Android source
+        shell: bash
         run: |
-          test -f grapevine-native-source.zip
+          set -e
+
+          echo "Files in repository:"
+          ls -la
+
+          ZIP_FILE=$(find . -maxdepth 1 -type f -iname "*.zip" | head -n 1)
+
+          if [ -z "$ZIP_FILE" ]; then
+            echo "ERROR: No Android source ZIP was found."
+            exit 1
+          fi
+
+          echo "Using source archive: $ZIP_FILE"
+
           rm -rf .grapevine-build
           mkdir .grapevine-build
-          unzip -q grapevine-native-source.zip -d .grapevine-build
-          test -f .grapevine-build/settings.gradle
-          test -f .grapevine-build/app/build.gradle
-          test -f .grapevine-build/app/src/main/java/com/grapevine/app/MainActivity.java
+
+          unzip -q "$ZIP_FILE" -d .grapevine-build
+
+          echo "Extracted files:"
+          find .grapevine-build -maxdepth 3 -type f | head -100
+
+          SETTINGS=$(find .grapevine-build -name settings.gradle -type f | head -n 1)
+
+          if [ -z "$SETTINGS" ]; then
+            echo "ERROR: settings.gradle was not found."
+            exit 1
+          fi
+
+          PROJECT_DIR=$(dirname "$SETTINGS")
+
+          if [ ! -f "$PROJECT_DIR/app/build.gradle" ]; then
+            echo "ERROR: app/build.gradle was not found."
+            exit 1
+          fi
+
+          echo "Android project found at: $PROJECT_DIR"
+
+          echo "$PROJECT_DIR" > project_dir.txt
 
       - name: Build Grapevine APK
-        working-directory: .grapevine-build
-        run: gradle --no-daemon assembleDebug
+        shell: bash
+        run: |
+          PROJECT_DIR=$(cat .grapevine-build/project_dir.txt)
+
+          cd "$PROJECT_DIR"
+
+          gradle --no-daemon assembleDebug
+
+      - name: Find APK
+        shell: bash
+        run: |
+          APK=$(find .grapevine-build -type f -name "app-debug.apk" | head -n 1)
+
+          if [ -z "$APK" ]; then
+            echo "ERROR: APK was not produced."
+            exit 1
+          fi
+
+          echo "APK found:"
+          echo "$APK"
 
       - name: Upload Grapevine APK
         uses: actions/upload-artifact@v4
         with:
           name: Grapevine-debug-apk
-          path: .grapevine-build/app/build/outputs/apk/debug/app-debug.apk
+          path: .grapevine-build/**/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
