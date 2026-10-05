@@ -3,8 +3,7 @@ name: Build Grapevine APK
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: ["main"]
 
 permissions:
   contents: read
@@ -14,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Grapevine
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Java 17
@@ -22,93 +21,52 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+          cache: gradle
 
-      - name: Install Gradle 8.9
+      - name: Set up Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
 
-      - name: Find and unpack Android source
+      - name: Find and unpack Grapevine source
         shell: bash
         run: |
-          set -e
-
-          echo "Looking for Android source ZIP..."
-
-          ZIP_FILE=$(find . -maxdepth 1 -type f -iname "grapevine-native-source-fixed.zip" | head -n 1)
-
-          if [ -z "$ZIP_FILE" ]; then
-            echo "ERROR: No ZIP file found."
-            exit 1
-          fi
-
-          echo "Using: $ZIP_FILE"
-
+          set -euo pipefail
+          ZIP_FILE="Grapevine-Android-FINAL.zip"
+          test -f "$ZIP_FILE"
           rm -rf .grapevine-build
           mkdir -p .grapevine-build
-
           unzip -q "$ZIP_FILE" -d .grapevine-build
 
-          echo "Finding Android project..."
-
-          SETTINGS=$(find .grapevine-build \
-            \( -name "settings.gradle" -o -name "settings.gradle.kts" \) \
-            -type f | head -n 1)
-
-          if [ -z "$SETTINGS" ]; then
-            echo "ERROR: Android settings file not found."
-            find .grapevine-build -maxdepth 5 -type f -print
-            exit 1
-          fi
-
-          PROJECT_DIR=$(dirname "$SETTINGS")
-
-          echo "Android project: $PROJECT_DIR"
-
-          if [ ! -f "$PROJECT_DIR/app/build.gradle" ] && \
-             [ ! -f "$PROJECT_DIR/app/build.gradle.kts" ]; then
-            echo "ERROR: app Gradle file not found."
-            find "$PROJECT_DIR" -maxdepth 4 -type f -print
-            exit 1
-          fi
-
-          printf '%s' "$PROJECT_DIR" > project_dir.txt
+          test -f .grapevine-build/settings.gradle
+          test -f .grapevine-build/build.gradle
+          test -f .grapevine-build/app/build.gradle
+          test -f .grapevine-build/app/src/main/AndroidManifest.xml
+          test -f .grapevine-build/app/src/main/java/com/grapevine/app/MainActivity.java
 
       - name: Build Grapevine APK
+        working-directory: .grapevine-build
         shell: bash
         run: |
-          set -e
+          set -euo pipefail
+          gradle --no-daemon --stacktrace assembleDebug
 
-          PROJECT_DIR=$(cat project_dir.txt)
-
-          echo "Building from: $PROJECT_DIR"
-
-          cd "$PROJECT_DIR"
-
-          gradle --no-daemon assembleDebug
-
-      - name: Find APK
+      - name: Locate and copy APK
         shell: bash
         run: |
-          set -e
-
-          APK=$(find .grapevine-build \
-            -type f \
-            -name "app-debug.apk" | head -n 1)
-
-          if [ -z "$APK" ]; then
-            echo "ERROR: APK was not produced."
-            find .grapevine-build -type f -name "*.apk" -print
-            exit 1
-          fi
-
-          echo "APK successfully created:"
-          echo "$APK"
+          set -euo pipefail
+          APK="$(find "$GITHUB_WORKSPACE/.grapevine-build" -type f -path '*/build/outputs/apk/debug/*.apk' | head -n 1)"
+          test -n "$APK"
+          test -s "$APK"
+          echo "APK found: $APK"
+          cp "$APK" "$GITHUB_WORKSPACE/Grapevine.apk"
+          test -s "$GITHUB_WORKSPACE/Grapevine.apk"
+          ls -lh "$GITHUB_WORKSPACE/Grapevine.apk"
 
       - name: Upload Grapevine APK
         uses: actions/upload-artifact@v4
         with:
-          name: Grapevine-debug-apk
-          path: .grapevine-build/**/app/build/outputs/apk/debug/app-debug.apk
+          name: Grapevine-APK
+          path: Grapevine.apk
           if-no-files-found: error
           retention-days: 30
