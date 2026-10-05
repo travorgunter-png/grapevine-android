@@ -3,7 +3,8 @@ name: Build Grapevine APK
 on:
   workflow_dispatch:
   push:
-    branches: ["main"]
+    branches:
+      - main
 
 permissions:
   contents: read
@@ -32,48 +33,55 @@ jobs:
         run: |
           set -e
 
-          echo "Files in repository:"
-          ls -la
+          echo "Looking for Android source ZIP..."
 
           ZIP_FILE=$(find . -maxdepth 1 -type f -iname "*.zip" | head -n 1)
 
           if [ -z "$ZIP_FILE" ]; then
-            echo "ERROR: No Android source ZIP was found."
+            echo "ERROR: No ZIP file found."
             exit 1
           fi
 
-          echo "Using source archive: $ZIP_FILE"
+          echo "Using: $ZIP_FILE"
 
           rm -rf .grapevine-build
-          mkdir .grapevine-build
+          mkdir -p .grapevine-build
 
           unzip -q "$ZIP_FILE" -d .grapevine-build
 
-          echo "Extracted files:"
-          find .grapevine-build -maxdepth 3 -type f | head -100
+          echo "Finding Android project..."
 
-          SETTINGS=$(find .grapevine-build -name settings.gradle -type f | head -n 1)
+          SETTINGS=$(find .grapevine-build \
+            \( -name "settings.gradle" -o -name "settings.gradle.kts" \) \
+            -type f | head -n 1)
 
           if [ -z "$SETTINGS" ]; then
-            echo "ERROR: settings.gradle was not found."
+            echo "ERROR: Android settings file not found."
+            find .grapevine-build -maxdepth 5 -type f -print
             exit 1
           fi
 
           PROJECT_DIR=$(dirname "$SETTINGS")
 
-          if [ ! -f "$PROJECT_DIR/app/build.gradle" ]; then
-            echo "ERROR: app/build.gradle was not found."
+          echo "Android project: $PROJECT_DIR"
+
+          if [ ! -f "$PROJECT_DIR/app/build.gradle" ] && \
+             [ ! -f "$PROJECT_DIR/app/build.gradle.kts" ]; then
+            echo "ERROR: app Gradle file not found."
+            find "$PROJECT_DIR" -maxdepth 4 -type f -print
             exit 1
           fi
 
-          echo "Android project found at: $PROJECT_DIR"
-
-          echo "$PROJECT_DIR" > project_dir.txt
+          printf '%s' "$PROJECT_DIR" > project_dir.txt
 
       - name: Build Grapevine APK
         shell: bash
         run: |
-          PROJECT_DIR=$(cat .grapevine-build/project_dir.txt)
+          set -e
+
+          PROJECT_DIR=$(cat project_dir.txt)
+
+          echo "Building from: $PROJECT_DIR"
 
           cd "$PROJECT_DIR"
 
@@ -82,14 +90,19 @@ jobs:
       - name: Find APK
         shell: bash
         run: |
-          APK=$(find .grapevine-build -type f -name "app-debug.apk" | head -n 1)
+          set -e
+
+          APK=$(find .grapevine-build \
+            -type f \
+            -name "app-debug.apk" | head -n 1)
 
           if [ -z "$APK" ]; then
             echo "ERROR: APK was not produced."
+            find .grapevine-build -type f -name "*.apk" -print
             exit 1
           fi
 
-          echo "APK found:"
+          echo "APK successfully created:"
           echo "$APK"
 
       - name: Upload Grapevine APK
