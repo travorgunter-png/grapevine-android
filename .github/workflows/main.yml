@@ -27,13 +27,24 @@ jobs:
         with:
           gradle-version: "8.9"
 
+      - name: Unpack complete Android source
+        run: |
+          test -f grapevine-native-source.zip
+          rm -rf .grapevine-build
+          mkdir .grapevine-build
+          unzip -q grapevine-native-source.zip -d .grapevine-build
+          test -f .grapevine-build/settings.gradle
+          test -f .grapevine-build/app/build.gradle
+          test -f .grapevine-build/app/src/main/java/com/grapevine/app/MainActivity.java
+
       - name: Build Grapevine APK
-        run: gradle --no-daemon clean assembleDebug
+        working-directory: .grapevine-build
+        run: gradle --no-daemon assembleDebug
 
       - name: Upload Grapevine APK
         uses: actions/upload-artifact@v4
         with:
           name: Grapevine-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: .grapevine-build/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
