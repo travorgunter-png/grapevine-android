@@ -33,13 +33,16 @@ jobs:
         run: |
           set -euo pipefail
 
-          echo "Files in repository:"
-          find . -maxdepth 3 -type f | sort
+          echo "========================================"
+          echo "Searching for Grapevine ZIP..."
+          echo "========================================"
 
-          ZIP_FILE="$(find . -maxdepth 3 -type f -iname 'Grapevine-Android-V12-VERIFICATION-BADGE-FIX.zip' -print -quit || true)"
+          find . -maxdepth 4 -type f | sort
+
+          ZIP_FILE="$(find . -maxdepth 4 -type f -iname 'Grapevine-Android-V12-VERIFICATION-BADGE-FIX.zip' -print -quit || true)"
 
           if [ -z "$ZIP_FILE" ]; then
-            ZIP_FILE="$(find . -maxdepth 3 -type f -iname '*.zip' -print -quit || true)"
+            ZIP_FILE="$(find . -maxdepth 4 -type f -iname '*.zip' -print -quit || true)"
           fi
 
           if [ -z "$ZIP_FILE" ]; then
@@ -47,72 +50,137 @@ jobs:
             exit 1
           fi
 
-          echo "Using ZIP: $ZIP_FILE"
+          echo "Using ZIP:"
+          echo "$ZIP_FILE"
 
           rm -rf grapevine-source
           mkdir -p grapevine-source
 
           unzip -q "$ZIP_FILE" -d grapevine-source
 
-          echo "Extracted files:"
-          find grapevine-source -maxdepth 4 -type f | sort
+          echo "========================================"
+          echo "Extracted source:"
+          echo "========================================"
 
-          PROJECT_DIR="$(find grapevine-source -name settings.gradle -o -name settings.gradle.kts | head -n 1 | xargs -r dirname)"
+          find grapevine-source -maxdepth 5 -type f | sort
 
-          if [ -z "$PROJECT_DIR" ]; then
-            PROJECT_DIR="$(find grapevine-source -type f -name gradlew -print -quit | xargs -r dirname)"
+          echo "========================================"
+          echo "Finding Android Gradle project..."
+          echo "========================================"
+
+          PROJECT_DIR=""
+
+          SETTINGS_FILE="$(find grapevine-source -type f \( -name 'settings.gradle' -o -name 'settings.gradle.kts' \) -print -quit || true)"
+
+          if [ -n "$SETTINGS_FILE" ]; then
+            PROJECT_DIR="$(dirname "$SETTINGS_FILE")"
           fi
 
           if [ -z "$PROJECT_DIR" ]; then
-            echo "ERROR: Android/Gradle project could not be found after extraction."
+            BUILD_FILE="$(find grapevine-source -type f \( -name 'build.gradle' -o -name 'build.gradle.kts' \) -print -quit || true)"
+
+            if [ -n "$BUILD_FILE" ]; then
+              PROJECT_DIR="$(dirname "$BUILD_FILE")"
+            fi
+          fi
+
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "ERROR: Could not find Android Gradle project."
             exit 1
           fi
 
-          echo "Android project found at: $PROJECT_DIR"
+          echo "Android project found at:"
+          echo "$PROJECT_DIR"
 
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
-            - name: Build Grapevine APK
+      - name: Show Android project
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "========================================"
+          echo "Project directory:"
+          echo "$PROJECT_DIR"
+          echo "========================================"
+
+          cd "$PROJECT_DIR"
+
+          echo "Project contents:"
+          ls -la
+
+          echo "========================================"
+          echo "Gradle files:"
+          echo "========================================"
+
+          find . -maxdepth 3 -type f \
+            \( -name 'settings.gradle' \
+            -o -name 'settings.gradle.kts' \
+            -o -name 'build.gradle' \
+            -o -name 'build.gradle.kts' \
+            -o -name 'gradlew' \
+            -o -name 'gradle-wrapper.properties' \) \
+            -print
+
+      - name: Build Grapevine APK
         shell: bash
         run: |
           set -euo pipefail
 
           cd "$PROJECT_DIR"
 
-          echo "Android project:"
-          pwd
-
-          echo "Project files:"
-          ls -la
+          echo "========================================"
+          echo "Building Grapevine APK"
+          echo "========================================"
 
           if [ -f "gradlew" ]; then
+            echo "Using Gradle wrapper."
             chmod +x gradlew
             ./gradlew clean assembleDebug --stacktrace
           else
-            echo "No gradlew wrapper found."
+            echo "No Gradle wrapper found."
             echo "Using installed Gradle 8.9."
-
             gradle clean assembleDebug --stacktrace
           fi
 
-      - name: Locate and copy APK
+      - name: Locate APK
         shell: bash
         run: |
           set -euo pipefail
 
+          echo "========================================"
+          echo "Searching for generated APK..."
+          echo "========================================"
+
           APK="$(find "$PROJECT_DIR" -type f -name '*.apk' -print -quit || true)"
 
           if [ -z "$APK" ]; then
-            echo "ERROR: APK was not produced."
+            echo "ERROR: No APK was produced."
+
             echo "Searching entire workspace:"
-            find "$GITHUB_WORKSPACE" -type f -name '*.apk' -print
+            find "$GITHUB_WORKSPACE" -type f -name '*.apk' -print || true
+
             exit 1
           fi
 
-          echo "APK found: $APK"
+          echo "APK found:"
+          echo "$APK"
+
+          echo "APK_PATH=$APK" >> "$GITHUB_ENV"
+
+      - name: Copy APK
+        shell: bash
+        run: |
+          set -euo pipefail
 
           mkdir -p "$GITHUB_WORKSPACE/apk-output"
-          cp "$APK" "$GITHUB_WORKSPACE/apk-output/Grapevine-V12.apk"
+
+          cp "$APK_PATH" \
+            "$GITHUB_WORKSPACE/apk-output/Grapevine-V12.apk"
+
+          echo "APK copied successfully."
+
+          ls -lh "$GITHUB_WORKSPACE/apk-output/Grapevine-V12.apk"
 
       - name: Upload Grapevine APK
         uses: actions/upload-artifact@v4
