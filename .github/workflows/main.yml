@@ -22,10 +22,10 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Install Gradle 8.7
+      - name: Install Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "8.7"
+          gradle-version: "8.9"
 
       - name: Build Grapevine APK
         run: gradle --no-daemon clean assembleDebug
