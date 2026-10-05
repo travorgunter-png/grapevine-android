@@ -72,26 +72,40 @@ jobs:
 
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
-      - name: Make Gradle executable
+            - name: Build Grapevine APK
         shell: bash
         run: |
-          chmod +x "$PROJECT_DIR/gradlew"
+          set -euo pipefail
 
-      - name: Build Grapevine APK
-        shell: bash
-        run: |
           cd "$PROJECT_DIR"
-          ./gradlew clean assembleDebug --stacktrace
+
+          echo "Android project:"
+          pwd
+
+          echo "Project files:"
+          ls -la
+
+          if [ -f "gradlew" ]; then
+            chmod +x gradlew
+            ./gradlew clean assembleDebug --stacktrace
+          else
+            echo "No gradlew wrapper found."
+            echo "Using installed Gradle 8.9."
+
+            gradle clean assembleDebug --stacktrace
+          fi
 
       - name: Locate and copy APK
         shell: bash
         run: |
           set -euo pipefail
 
-          APK="$(find "$PROJECT_DIR" -type f -name '*.apk' -print -quit)"
+          APK="$(find "$PROJECT_DIR" -type f -name '*.apk' -print -quit || true)"
 
           if [ -z "$APK" ]; then
             echo "ERROR: APK was not produced."
+            echo "Searching entire workspace:"
+            find "$GITHUB_WORKSPACE" -type f -name '*.apk' -print
             exit 1
           fi
 
