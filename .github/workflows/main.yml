@@ -1,4 +1,4 @@
-name: Build Grapevine V22 APK
+name: Build Grapevine V23 APK
 
 on:
   workflow_dispatch:
@@ -27,11 +27,11 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Extract and verify Grapevine V22 source
+      - name: Extract and verify Grapevine V23 source
         shell: bash
         run: |
           set -euo pipefail
-          ZIP_FILE="Grapevine-Android-V22-FINAL.zip"
+          ZIP_FILE="Grapevine-Android-V23-FINAL.zip"
           test -f "$ZIP_FILE"
           rm -rf .grapevine-build
           mkdir -p .grapevine-build
@@ -43,10 +43,13 @@ jobs:
           test -f .grapevine-build/grapevine_v12/app/src/main/assets/app.js
           test -f .grapevine-build/grapevine_v12/app/src/main/assets/SUPABASE_SETUP.sql
           grep -q "minSdk 26" .grapevine-build/grapevine_v12/app/build.gradle
-          grep -q "versionCode 22" .grapevine-build/grapevine_v12/app/build.gradle
+          grep -q "versionCode 23" .grapevine-build/grapevine_v12/app/build.gradle
+          grep -q "versionName '23.0'" .grapevine-build/grapevine_v12/app/build.gradle
           grep -q "ensure_grapevine_gallery_bucket" .grapevine-build/grapevine_v12/app/src/main/assets/app.js
           grep -q "Messages & Replies" .grapevine-build/grapevine_v12/app/src/main/assets/app.js
           grep -q "email_not_confirmed" .grapevine-build/grapevine_v12/app/src/main/assets/app.js
+          grep -q "Email confirmation required" .grapevine-build/grapevine_v12/app/src/main/assets/app.js
+          grep -q "<polygon class=\"seal\"" .grapevine-build/grapevine_v12/app/src/main/assets/app.js
           grep -q "grapevine.*auth-callback" .grapevine-build/grapevine_v12/app/src/main/AndroidManifest.xml
 
       - name: Check JavaScript syntax
@@ -67,13 +70,13 @@ jobs:
           set -euo pipefail
           APK=".grapevine-build/grapevine_v12/app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
-          cp "$APK" Grapevine-V22.apk
-          ls -lh Grapevine-V22.apk
+          cp "$APK" Grapevine-V23.apk
+          ls -lh Grapevine-V23.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Grapevine-V22-APK
-          path: Grapevine-V22.apk
+          name: Grapevine-V23-APK
+          path: Grapevine-V23.apk
           if-no-files-found: error
           retention-days: 30
