@@ -1,4 +1,4 @@
-name: Build Grapevine V19 APK
+name: Build Grapevine V20 APK
 
 on:
   workflow_dispatch:
@@ -27,11 +27,11 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Extract Grapevine V19 source
+      - name: Extract and verify Grapevine V20 source
         shell: bash
         run: |
           set -euo pipefail
-          ZIP_FILE="Grapevine-Android-V19-FINAL.zip"
+          ZIP_FILE="Grapevine-Android-V20-FINAL.zip"
           test -f "$ZIP_FILE"
           rm -rf .grapevine-build
           mkdir -p .grapevine-build
@@ -40,6 +40,17 @@ jobs:
           test -f .grapevine-build/grapevine_v12/app/build.gradle
           test -f .grapevine-build/grapevine_v12/app/src/main/AndroidManifest.xml
           test -f .grapevine-build/grapevine_v12/app/src/main/java/com/grapevine/app/MainActivity.java
+          test -f .grapevine-build/grapevine_v12/app/src/main/assets/app.js
+          grep -q "minSdk 26" .grapevine-build/grapevine_v12/app/build.gradle
+          grep -q "versionCode 20" .grapevine-build/grapevine_v12/app/build.gradle
+          grep -q "openGalleryUpload" .grapevine-build/grapevine_v12/app/src/main/assets/app.js
+          grep -q "Messages & Replies" .grapevine-build/grapevine_v12/app/src/main/assets/app.js
+          grep -q "grapevine.*auth-callback" .grapevine-build/grapevine_v12/app/src/main/AndroidManifest.xml
+
+      - name: Check JavaScript syntax
+        working-directory: .grapevine-build/grapevine_v12
+        shell: bash
+        run: node --check app/src/main/assets/app.js
 
       - name: Build debug APK
         working-directory: .grapevine-build/grapevine_v12
@@ -54,13 +65,13 @@ jobs:
           set -euo pipefail
           APK=".grapevine-build/grapevine_v12/app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
-          cp "$APK" Grapevine-V19.apk
-          ls -lh Grapevine-V19.apk
+          cp "$APK" Grapevine-V20.apk
+          ls -lh Grapevine-V20.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Grapevine-V19-APK
-          path: Grapevine-V19.apk
+          name: Grapevine-V20-APK
+          path: Grapevine-V20.apk
           if-no-files-found: error
           retention-days: 30
