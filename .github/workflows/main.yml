@@ -1,82 +1,44 @@
-name: Build Grapevine V23 APK
+name: Build Grapevine V24 APK
 
 on:
   workflow_dispatch:
   push:
-    branches: ["main"]
+    branches:
+      - main
+      - master
 
 permissions:
   contents: read
 
 jobs:
-  build-apk:
+  build:
+    name: Build Grapevine V24
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repository
+      - name: Checkout V24 source
         uses: actions/checkout@v4
 
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: "17"
-          cache: gradle
+          java-version: '17'
 
-      - name: Set up Gradle 8.9
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.9"
 
-      - name: Extract and verify Grapevine V23 source
-        shell: bash
-        run: |
-          set -euo pipefail
-          ZIP_FILE="Grapevine-Android-V23-FINAL.zip"
-          test -f "$ZIP_FILE"
-          rm -rf .grapevine-build
-          mkdir -p .grapevine-build
-          unzip -q "$ZIP_FILE" -d .grapevine-build
-          test -f .grapevine-build/grapevine_v12/settings.gradle
-          test -f .grapevine-build/grapevine_v12/app/build.gradle
-          test -f .grapevine-build/grapevine_v12/app/src/main/AndroidManifest.xml
-          test -f .grapevine-build/grapevine_v12/app/src/main/java/com/grapevine/app/MainActivity.java
-          test -f .grapevine-build/grapevine_v12/app/src/main/assets/app.js
-          test -f .grapevine-build/grapevine_v12/app/src/main/assets/SUPABASE_SETUP.sql
-          grep -q "minSdk 26" .grapevine-build/grapevine_v12/app/build.gradle
-          grep -q "versionCode 23" .grapevine-build/grapevine_v12/app/build.gradle
-          grep -q "versionName '23.0'" .grapevine-build/grapevine_v12/app/build.gradle
-          grep -q "ensure_grapevine_gallery_bucket" .grapevine-build/grapevine_v12/app/src/main/assets/app.js
-          grep -q "Messages & Replies" .grapevine-build/grapevine_v12/app/src/main/assets/app.js
-          grep -q "email_not_confirmed" .grapevine-build/grapevine_v12/app/src/main/assets/app.js
-          grep -q "Email confirmation required" .grapevine-build/grapevine_v12/app/src/main/assets/app.js
-          grep -q "<polygon class=\"seal\"" .grapevine-build/grapevine_v12/app/src/main/assets/app.js
-          grep -q "grapevine.*auth-callback" .grapevine-build/grapevine_v12/app/src/main/AndroidManifest.xml
-
-      - name: Check JavaScript syntax
-        working-directory: .grapevine-build/grapevine_v12
-        shell: bash
-        run: node --check app/src/main/assets/app.js
-
-      - name: Build debug APK
-        working-directory: .grapevine-build/grapevine_v12
-        shell: bash
-        run: |
-          set -euo pipefail
-          gradle --no-daemon --stacktrace assembleDebug
+      - name: Build V24 Debug APK
+        run: gradle --no-daemon :app:assembleDebug
 
       - name: Verify APK
-        shell: bash
         run: |
-          set -euo pipefail
-          APK=".grapevine-build/grapevine_v12/app/build/outputs/apk/debug/app-debug.apk"
-          test -s "$APK"
-          cp "$APK" Grapevine-V23.apk
-          ls -lh Grapevine-V23.apk
+          test -f app/build/outputs/apk/debug/app-debug.apk
+          ls -lh app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Upload APK artifact
+      - name: Upload Grapevine V24 APK
         uses: actions/upload-artifact@v4
         with:
-          name: Grapevine-V23-APK
-          path: Grapevine-V23.apk
+          name: grapevine-v24-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-          retention-days: 30
