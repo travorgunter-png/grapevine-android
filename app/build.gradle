@@ -1,0 +1,26 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.grapevine.app'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.grapevine.app'
+        minSdk 26
+        targetSdk 35
+        versionCode 24
+        versionName '24.0'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            shrinkResources false
+        }
+    }
+}
+
+dependencies {
+}
