@@ -1,0 +1,86 @@
+:root{--ink:#111827;--muted:#667085;--cream:#f7f4ee;--card:#fff;--gold:#d5a84c;--line:#e7e2d8;--green:#1f8f5f;--danger:#c0392b}*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;background:var(--cream);color:var(--ink)}button,input,textarea,select{font:inherit}button{cursor:pointer}.shell{min-height:100vh;padding-bottom:78px}.top{position:sticky;top:0;z-index:5;background:rgba(17,24,39,.96);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 4px 20px #0002}.brand{display:flex;align-items:center;gap:10px;flex:1}.brand img{width:42px;height:42px;border-radius:10px;object-fit:cover}.brand b{display:block;font-size:15px}.brand small{opacity:.7}.status{font-size:11px;padding:6px 9px;border-radius:999px;background:#ffffff18}.status.online{background:#1f8f5f}.status.offline{background:#8b5e34}.content{padding:18px;max-width:900px;margin:auto}.hero{background:linear-gradient(135deg,#111827,#263246);color:#fff;border-radius:24px;padding:26px 20px;margin-bottom:18px;overflow:hidden}.hero img{width:82px;height:82px;border-radius:20px;object-fit:cover;border:2px solid #fff3}.eyebrow{letter-spacing:.16em;font-size:11px;font-weight:800;color:var(--gold)}h1{font-size:32px;line-height:1.05;margin:8px 0 12px}h2{margin:0 0 12px}p{line-height:1.55;color:var(--muted)}.hero p{color:#dce3ed}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px}.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 5px 18px #00000009}.card h3{margin:5px 0 7px}.tag,.badge{display:inline-flex;align-items:center;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:700;background:#f0ede5;margin:2px}.verified{background:#e4f5ec;color:#147a4c}.photo{width:72px;height:72px;border-radius:16px;object-fit:cover;background:#ece8df}.member{display:flex;gap:13px}.member-main{flex:1}.member-name{display:flex;gap:7px;align-items:center;flex-wrap:wrap}.vbadge{width:18px;height:18px;border-radius:50%;background:#2085e6;color:#fff;display:inline-grid;place-items:center;font-size:11px;font-weight:900}.bottom{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:8px 5px calc(8px + env(safe-area-inset-bottom));z-index:5}.bottom button{border:0;background:none;color:#667085;font-size:11px}.bottom button.active{color:var(--ink);font-weight:800}.bottom span{display:block;font-size:20px;margin-bottom:2px}.actions{display:flex;gap:8px;flex-wrap:wrap}.btn{border:0;border-radius:12px;padding:11px 14px;font-weight:800}.primary{background:var(--ink);color:#fff}.gold{background:var(--gold);color:#111}.light{background:#eeeae2;color:#111}.danger{background:#fce9e7;color:var(--danger)}.field{display:block;margin:10px 0}.field label{display:block;font-size:12px;font-weight:800;margin-bottom:5px}.field input,.field textarea,.field select{width:100%;padding:12px;border:1px solid var(--line);border-radius:11px;background:#fff}.modal{position:fixed;inset:0;background:#0008;z-index:20;display:grid;place-items:end}.sheet{background:#fff;border-radius:22px 22px 0 0;padding:20px;width:100%;max-height:90vh;overflow:auto}.admin-tabs{display:flex;gap:7px;overflow:auto;padding-bottom:10px}.admin-tabs button{white-space:nowrap}.row{display:flex;justify-content:space-between;gap:10px;align-items:center;border-bottom:1px solid var(--line);padding:12px 0}.empty{text-align:center;padding:35px 15px}.notice{padding:11px 13px;border-radius:12px;background:#fff7dd;margin:10px 0;font-size:13px}.stat{font-size:28px;font-weight:900}.small{font-size:12px}.search{margin-bottom:12px}.search input{width:100%;padding:13px;border:1px solid var(--line);border-radius:12px}.admin-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+
+/* GRAPEVINE ADMIN MEMBER CONTROL CENTRE */
+.control-hero{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px;border-radius:18px;background:linear-gradient(135deg,#14251f,#244d3e);color:#fff;margin-bottom:16px}
+.control-hero h2{margin:4px 0 6px}.control-hero p{margin:0;opacity:.86;max-width:600px}.btn.big{padding:14px 18px;font-weight:800}
+.member-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0}.stat-card{padding:16px;border:1px solid #ddd;border-radius:16px;background:#fff;display:flex;flex-direction:column;gap:4px}.stat-card strong{font-size:28px}.stat-card span{font-size:12px;opacity:.65}
+.member-toolbar{margin:12px 0}.member-toolbar input{width:100%;box-sizing:border-box;padding:13px 14px;border:1px solid #ddd;border-radius:12px;font-size:15px}
+.admin-member-card{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px;margin:10px 0;background:#fff;border:1px solid #e1e1e1;border-radius:16px;box-shadow:0 3px 12px rgba(0,0,0,.05)}
+.admin-member-info{display:flex;align-items:center;gap:12px;min-width:0}.admin-avatar{width:54px;height:54px;border-radius:50%;object-fit:cover;border:2px solid #eee}.admin-member-name{font-weight:800;margin-bottom:4px}.admin-vbadge{font-size:11px;padding:3px 7px;margin-left:5px}.unverified{font-size:11px;opacity:.55;margin-left:5px}.admin-member-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:7px}
+@media(max-width:650px){.control-hero{flex-direction:column;align-items:stretch}.member-stats{grid-template-columns:repeat(3,1fr)}.stat-card{padding:11px}.stat-card strong{font-size:22px}.admin-member-card{align-items:flex-start;flex-direction:column}.admin-member-actions{width:100%;justify-content:flex-start}.admin-member-actions .btn{flex:1 1 auto}}
+.chat-box{display:flex;flex-direction:column;gap:9px;max-height:55vh;overflow:auto;padding:8px 0}.chat-msg{background:#f1eee7;border-radius:14px;padding:10px 12px;max-width:88%}.chat-msg.mine{align-self:flex-end;background:#e4f5ec}.chat-msg p{margin:5px 0}.chat-msg small{opacity:.6;font-size:10px}.chat-msg b{font-size:12px}.bottom{overflow-x:auto}.bottom button{min-width:56px}
+.photo-picker{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.form-photo-preview{width:76px;height:76px;border-radius:18px;object-fit:cover;border:2px solid var(--line);background:#f2f0eb}.vbadge{min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#1677e8;color:#fff;display:inline-flex;align-items:center;justify-content:center;gap:4px;font-size:10px;font-weight:900;box-shadow:0 1px 3px #0003}.vbadge span{width:13px;height:13px;border-radius:50%;background:#fff;color:#1677e8;display:inline-grid;place-items:center;font-size:9px;line-height:1}.admin-vbadge{height:22px}.member-name .vbadge{width:20px;min-width:20px;padding:0}.admin-member-actions .btn{cursor:pointer;touch-action:manipulation}
+
+/* Real GRAPEVINE verification badge */
+.real-verified-badge{display:inline-flex!important;align-items:center;justify-content:center;width:21px;height:21px;border-radius:50%;background:#1877f2;color:#fff;font-weight:900;vertical-align:middle;margin-left:6px;box-sizing:border-box;box-shadow:0 1px 2px rgba(0,0,0,.22)}
+.real-verified-badge .verified-check{font-size:14px;line-height:1;color:#fff}
+.admin-vbadge.real-verified-badge{width:auto;height:24px;border-radius:999px;padding:0 9px;gap:5px;font-size:11px;box-shadow:none}
+.admin-vbadge.real-verified-badge .verified-check{font-size:13px}
+
+/* GRAPEVINE unmistakable verified-member seal */
+.verification-wrap{display:inline-flex!important;align-items:center;gap:6px;vertical-align:middle;margin-left:6px;font-weight:900}
+.verification-seal{width:25px;height:25px;display:inline-flex;flex:none}
+.verification-seal svg{width:100%;height:100%;display:block}
+.verification-seal svg path:first-child{fill:#1877F2}
+.verification-seal svg .check{fill:none;stroke:#fff;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
+.verification-label{font-size:10px;letter-spacing:.04em;color:#1877F2;font-weight:900}
+.admin-verification{padding:3px 8px 3px 4px;border-radius:999px;background:#eaf3ff;margin-left:5px}
+.admin-verification .verification-seal{width:23px;height:23px}
+.admin-verification .verification-label{font-size:10px}
+
+.file-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer;touch-action:manipulation}.file-btn input[type=file]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:2;font-size:100px}.file-btn{user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+.native-photo-input{display:block;width:100%;min-height:52px;padding:10px;border:2px dashed var(--gold);border-radius:12px;background:#fff8e8;color:#111;cursor:pointer;touch-action:manipulation;-webkit-appearance:auto;appearance:auto}.photo-file-label{display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;width:100%;box-sizing:border-box;padding:12px 14px;border:2px solid var(--gold);border-radius:12px;background:#fff8e8;color:#111;font-weight:800;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none}.photo-file-icon{font-size:20px}.photo-file-label:active{transform:scale(.99);opacity:.85}.photo-picker .native-photo-input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}.native-photo-input::file-selector-button{margin-right:10px;border:0;border-radius:9px;padding:10px 13px;background:var(--gold);color:#111;font-weight:800;cursor:pointer}.photo-help{font-size:11px;color:var(--muted);margin-top:5px}.file-btn{display:none}
+
+/* GRAPEVINE V3 home information */
+.home-info{display:grid;gap:14px;margin-top:16px}.info-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.info-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.info-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px}.info-icon{font-size:24px}.info-card h3{margin:6px 0}.info-card p{margin:0;font-size:13px}.home-strip{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.home-strip .card{padding:14px}.home-strip strong{display:block;font-size:14px;margin-bottom:4px}.home-strip span{font-size:12px;color:var(--muted)}.welcome-note{background:#eef7ff;border:1px solid #d5eaff;border-radius:16px;padding:15px}.welcome-note h3{margin:0 0 5px}.welcome-note p{margin:0;font-size:13px}.home-info .eyebrow{margin-bottom:2px}@media(max-width:430px){.info-grid{grid-template-columns:1fr 1fr}.info-card{padding:12px}}
+
+/* V4: official badge only — no "Verified" text beside the check */
+.verification-badge{width:34px!important;height:34px!important;display:inline-block!important;object-fit:contain!important;vertical-align:middle!important;margin-left:3px!important;flex:none!important;background:transparent!important}
+.admin-verification{width:26px!important;height:26px!important;margin-left:5px!important;padding:0!important;border-radius:50%!important;background:transparent!important;box-shadow:none!important}
+.verification-wrap,.verification-seal,.verification-label{display:none!important}
+
+/* V4 home: clearer, information-rich landing page */
+.home-overview{display:grid;gap:12px;margin:18px 0}
+.home-overview .overview-title{font-size:18px;font-weight:900;margin:0}
+.home-overview .overview-copy{margin:4px 0 0;font-size:13px}
+.home-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.home-feature{background:#fff;border:1px solid var(--line);border-radius:16px;padding:15px}
+.home-feature .feature-icon{font-size:25px}
+.home-feature h3{margin:7px 0 5px;font-size:15px}
+.home-feature p{margin:0;font-size:12px;line-height:1.45}
+.home-quick{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+.home-quick .btn{padding:10px 6px;font-size:12px}
+@media(max-width:430px){.home-cards{grid-template-columns:1fr 1fr}.home-quick{grid-template-columns:1fr 1fr 1fr}}
+
+/* V12: authoritative inline GRAPEVINE verification badge. No image dependency. */
+.verification-badge{display:inline-flex!important;align-items:center!important;justify-content:center!important;width:26px!important;height:26px!important;min-width:26px!important;max-width:26px!important;padding:0!important;margin:0 0 0 6px!important;vertical-align:middle!important;flex:none!important;background:transparent!important;border:0!important;box-shadow:none!important;line-height:0!important;overflow:visible!important;}
+.verification-badge svg{display:block!important;width:26px!important;height:26px!important;min-width:26px!important;min-height:26px!important;overflow:visible!important;}
+.verification-badge .seal{fill:#1677E8!important;stroke:#0D5FC7!important;stroke-width:1.5!important;}
+.verification-badge .check{fill:none!important;stroke:#FFFFFF!important;stroke-width:9!important;stroke-linecap:round!important;stroke-linejoin:round!important;}
+.admin-member-name .verification-badge{width:26px!important;height:26px!important;}
+.media-audio{min-height:120px;display:flex;flex-direction:column;justify-content:center;gap:10px;padding:12px;border-radius:12px;background:#f5f1e8}.media-icon{font-size:34px;text-align:center}
+
+/* V20: clear approval states and reliable gallery upload controls */
+.notice.success{background:#e4f5ec;color:#146c45;border:1px solid #b9e5cf}
+.notice.danger{background:#fce9e7;color:#9f2f24;border:1px solid #f0c1bb}
+.admin-quick{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}
+.admin-quick-card{border:1px solid var(--line);background:#fff;border-radius:16px;padding:15px;text-align:left;display:flex;flex-direction:column;gap:6px;cursor:pointer;box-shadow:0 3px 12px #00000008}
+.admin-quick-card b{font-size:14px}.admin-quick-card span{font-size:12px;color:var(--muted);line-height:1.4}
+.gallery-file-input{display:block;width:100%;min-height:58px;padding:12px;border:2px dashed var(--gold);border-radius:12px;background:#fff8e8;color:#111;cursor:pointer;touch-action:manipulation;-webkit-appearance:auto;appearance:auto}
+@media(max-width:650px){.admin-quick{grid-template-columns:1fr}}
+
+/* V22: keep the verification badge tightly beside the member name */
+.member-name{display:inline-flex!important;align-items:center!important;gap:2px!important;flex-wrap:nowrap!important;}
+.member-name h3{display:inline-block!important;margin:0!important;}
+.member-name .verification-badge{margin-left:0!important;margin-right:0!important;}
+.admin-member-name{display:inline-flex!important;align-items:center!important;gap:2px!important;flex-wrap:nowrap!important;}
+.admin-member-name .verification-badge{margin-left:0!important;margin-right:0!important;}
+
+/* V23: official zigzag circular blue verification seal with white check */
+.verification-badge{display:inline-flex!important;align-items:center!important;justify-content:center!important;width:24px!important;height:24px!important;min-width:24px!important;max-width:24px!important;padding:0!important;margin:0 0 0 2px!important;vertical-align:middle!important;flex:none!important;background:transparent!important;border:0!important;box-shadow:none!important;line-height:0!important;overflow:visible!important;}
+.verification-badge svg{display:block!important;width:24px!important;height:24px!important;min-width:24px!important;min-height:24px!important;overflow:visible!important;}
+.verification-badge .seal{fill:#1677E8!important;stroke:#0D5FC7!important;stroke-width:1!important;}
+.verification-badge .check{fill:none!important;stroke:#FFFFFF!important;stroke-width:3.6!important;stroke-linecap:round!important;stroke-linejoin:round!important;}
+.member-name .verification-badge,.admin-member-name .verification-badge{margin-left:2px!important;margin-right:0!important;}
+.confirmation-box{background:#eef6ff;border:1px solid #b8d7ff;color:#16395c;}
+.confirmation-box p{color:#355b7d;margin:7px 0;}
