@@ -429,7 +429,31 @@ async function submitMemberForm(){
     toast('Photo/save failed: '+friendly(e));
   }
 }
-async function removeItem(key,id){if(!confirm('Remove this item?'))return;try{await dbDelete('content_items','id=eq.'+encodeURIComponent(id));await sync();render()}catch(e){toast(friendly(e))}}
+async function deleteGalleryStorageObject(item){
+  const url=String(item?.image||'');
+  const match=url.match(/\/storage\/v1\/object\/(?:public\/)?gallery-media\/(.+?)(?:[?#]|$)/i);
+  if(!match)return;
+  const rawPath=match[1].split('/').map(part=>{try{return decodeURIComponent(part)}catch{return part}}).join('/');
+  const encodedPath=rawPath.split('/').map(encodeURIComponent).join('/');
+  await authFetch('/storage/v1/object/gallery-media/'+encodedPath,{method:'DELETE'});
+}
+async function removeItem(key,id){
+  if(!confirm('Remove this item?'))return;
+  try{
+    if(!adminSession)throw Error('Administrator session required');
+    if(key==='gallery'){
+      const item=(state.gallery||[]).find(x=>String(x.id)===String(id)) || (state.gallery||[]).find(x=>String(x.id)===String(id));
+      if(item?.image)await deleteGalleryStorageObject(item);
+      await dbDelete('content_items','id=eq.'+encodeURIComponent(id));
+      await galleryDelete(id);
+      state.gallery=(state.gallery||[]).filter(x=>String(x.id)!==String(id));
+      state.allDownloadRequests=(state.allDownloadRequests||[]).filter(x=>String(x.content_id)!==String(id));
+      save();render();toast('Gallery media removed');return;
+    }
+    await dbDelete('content_items','id=eq.'+encodeURIComponent(id));
+    await sync();render();toast('Item removed');
+  }catch(e){toast('Could not remove media: '+friendly(e))}
+}
 async function editCollection(key,id){const existing=id?state[key].find(x=>String(x.id)===String(id)):null;const item=existing?{...existing}:{id:null,title:'',description:'',tags:[],image:''};const kind=key==='projects'?'project':key==='skills'?'skill':'gallery';openContentForm('Edit '+key.slice(0,-1),item,kind,async x=>{try{const row={kind,title:x.title,description:x.description||'',tags:x.tags||[],image_url:x.image||null};if(id)await dbPatch('content_items','id=eq.'+encodeURIComponent(id),row);else await dbInsert('content_items',row);await sync();render()}catch(e){toast(friendly(e))}})}
 function openGalleryUpload(){if(!session?.user?.id)return go('chat');const item={id:null,title:'',description:'',tags:[],image:''};document.body.insertAdjacentHTML('beforeend',`<div class="modal" id="modal"><div class="sheet"><div class="eyebrow">GALLERY SHOWCASE</div><h2>Upload Media</h2><p class="small">Choose one or more images, videos or audio files. ${adminSession?'Administrator uploads are published immediately.':'Member uploads are held for administrator approval.'}</p><div class="field"><label>Title</label><input id="f-title" placeholder="Showcase title"></div><div class="field"><label>Description</label><textarea id="f-description" placeholder="Describe this media"></textarea></div><div class="field"><label>Media files</label><input id="f-gallery-file" class="gallery-file-input" type="file" accept="image/*,video/*,audio/*" multiple aria-label="Choose gallery media"><div class="photo-help">Tap the file box to choose from your phone. Multiple files are supported.</div><div id="gallery-file-list" class="small"></div></div><div class="actions"><button class="btn light" onclick="document.getElementById('modal').remove()">Cancel</button><button class="btn primary" onclick="submitContentForm()">Upload Media</button></div></div></div>`);window._contentForm={item,done:null,kind:'gallery'};document.getElementById('f-gallery-file').addEventListener('change',function(){const files=[...this.files];document.getElementById('gallery-file-list').innerHTML=files.length?files.map(f=>`<div>✓ ${esc(f.name)} • ${mediaIcon(mediaKind(f))} • ${(f.size/1024/1024).toFixed(1)} MB</div>`).join(''):'No files selected.'})}
 function openContentForm(title,item,kind,done){document.body.insertAdjacentHTML('beforeend',`<div class="modal" id="modal"><div class="sheet"><h2>${title}</h2><div class="field"><label>Title</label><input id="f-title" value="${esc(item.title)}"></div><div class="field"><label>Description</label><textarea id="f-description">${esc(item.description||'')}</textarea></div><div class="field"><label>Tags</label><input id="f-tags" value="${esc((item.tags||[]).join(', '))}"></div>${kind==='gallery'?`<div class="field"><label>Showcase image</label><input id="f-gallery-file" class="gallery-file-input" type="file" accept="image/*,video/*,audio/*" multiple><div class="photo-help">Choose image, video or audio media.</div><div id="gallery-file-list" class="small"></div></div>`:''}<div class="actions"><button class="btn light" onclick="document.getElementById('modal').remove()">Cancel</button><button class="btn primary" onclick="submitContentForm()">Save</button></div></div></div>`);window._contentForm={item,done,kind};if(kind==='gallery')document.getElementById('f-gallery-file').addEventListener('change',function(){const files=[...this.files];document.getElementById('gallery-file-list').innerHTML=files.map(f=>`<div>✓ ${esc(f.name)} • ${mediaIcon(mediaKind(f))}</div>`).join('')})}
