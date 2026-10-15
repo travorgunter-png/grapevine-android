@@ -140,3 +140,16 @@
   min-width: 20px !important;
   min-height: 20px !important;
 }
+
+
+/* Mafia AI, history, and launch branding */
+.ai-tabs{display:flex;gap:8px;margin:0 0 12px;flex-wrap:wrap}
+.mafia-card{border-color:#d5a84c}
+.mafia-history{margin:14px 0;display:grid;gap:7px}
+.mafia-history-row{display:flex;align-items:center;gap:8px;background:#f7f4ee;border:1px solid #e7e2d8;border-radius:12px;padding:6px 9px}
+.mafia-history-open{flex:1;text-align:left;border:0;background:transparent;padding:7px;font-weight:800;color:#111827}
+.mafia-history-open small{display:block;font-weight:500;color:#667085;margin-top:4px}
+.mafia-thread{max-height:42vh;min-height:100px;border-top:1px solid #e7e2d8;border-bottom:1px solid #e7e2d8;margin:12px 0;padding:10px 2px}
+#mafiaInput{width:100%;padding:12px;border:1px solid var(--line);border-radius:11px;background:#fff}
+#mafiaStatus{margin-top:8px;color:var(--muted)}
+.top{padding-top:12px; padding-top:max(12px, env(safe-area-inset-top))}

@@ -453,3 +453,84 @@ $$;
 
 revoke all on function public.ensure_grapevine_gallery_bucket() from public;
 grant execute on function public.ensure_grapevine_gallery_bucket() to authenticated;
+
+
+-- MAFIA AI: persistent member conversations and administrator review.
+-- The Edge Function `mafia-ai-chat` must also be deployed in Supabase.
+create table if not exists public.mafia_ai_conversations (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  owner_email text not null default '',
+  title text not null default 'New conversation',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.mafia_ai_messages (
+  id uuid primary key default gen_random_uuid(),
+  conversation_id uuid not null references public.mafia_ai_conversations(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  role text not null check (role in ('user','assistant')),
+  content text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists mafia_ai_conversations_user_updated_idx
+  on public.mafia_ai_conversations(user_id, updated_at desc);
+create index if not exists mafia_ai_messages_conversation_created_idx
+  on public.mafia_ai_messages(conversation_id, created_at asc);
+
+alter table public.mafia_ai_conversations enable row level security;
+alter table public.mafia_ai_messages enable row level security;
+
+drop policy if exists "Members and admins can view Mafia AI conversations" on public.mafia_ai_conversations;
+create policy "Members and admins can view Mafia AI conversations"
+on public.mafia_ai_conversations for select to authenticated
+using (
+  user_id = (select auth.uid())
+  or exists (select 1 from public.admins a where a.user_id = (select auth.uid()))
+);
+
+drop policy if exists "Members can create their Mafia AI conversations" on public.mafia_ai_conversations;
+create policy "Members can create their Mafia AI conversations"
+on public.mafia_ai_conversations for insert to authenticated
+with check (user_id = (select auth.uid()));
+
+drop policy if exists "Owners and admins can update Mafia AI conversations" on public.mafia_ai_conversations;
+create policy "Owners and admins can update Mafia AI conversations"
+on public.mafia_ai_conversations for update to authenticated
+using (
+  user_id = (select auth.uid())
+  or exists (select 1 from public.admins a where a.user_id = (select auth.uid()))
+)
+with check (
+  user_id = (select auth.uid())
+  or exists (select 1 from public.admins a where a.user_id = (select auth.uid()))
+);
+
+drop policy if exists "Members and admins can view Mafia AI messages" on public.mafia_ai_messages;
+create policy "Members and admins can view Mafia AI messages"
+on public.mafia_ai_messages for select to authenticated
+using (
+  exists (
+    select 1 from public.mafia_ai_conversations c
+    where c.id = conversation_id
+      and (
+        c.user_id = (select auth.uid())
+        or exists (select 1 from public.admins a where a.user_id = (select auth.uid()))
+      )
+  )
+);
+
+-- The deployed Edge Function uses the authenticated caller context to persist both
+-- the user's prompt and the generated assistant reply for that owned conversation.
+drop policy if exists "Owners can insert their Mafia AI messages" on public.mafia_ai_messages;
+create policy "Owners can insert their Mafia AI messages"
+on public.mafia_ai_messages for insert to authenticated
+with check (
+  user_id = (select auth.uid())
+  and exists (
+    select 1 from public.mafia_ai_conversations c
+    where c.id = conversation_id and c.user_id = (select auth.uid())
+  )
+);

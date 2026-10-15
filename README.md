@@ -52,3 +52,23 @@ It checks the JavaScript syntax and required source files before running the And
 `Grapevine-V26-APK`
 
 The project uses Java 17, Gradle 8.9 and Android Gradle Plugin 8.7.3.
+
+
+## V26 Mafia AI update notes
+
+- Existing Android launcher icon resources and manifest icon references are unchanged.
+- Added a brief native launch overlay reading “GRAPEVINE — Powered By Mafia Boss”; it uses the existing Grapevine badge drawable, not a new launcher icon.
+- Added a Mafia AI screen and saved conversation history using `mafia_ai_conversations` and `mafia_ai_messages`.
+- The frontend calls the deployed Supabase Edge Function at `/functions/v1/mafia-ai-chat`. The `GEMINI_API_KEY` must remain in Supabase Edge Function Secrets, never in this Android project.
+- The appended SQL defines RLS policies for member-owned conversations and administrator review. Re-run only if needed; statements use `IF NOT EXISTS` / policy replacement where appropriate.
+- Keep the existing GitHub Actions workflow to build the APK. This source package has been syntax-checked for JavaScript, but it has not been built with Android Gradle in this environment.
+
+
+## Admin's private Mafia AI and member-history review
+
+- Authorized administrators see two separate modes in the Mafia AI screen: **My Private AI** and **Member Histories**.
+- **My Private AI** lists and creates conversations owned by the signed-in administrator.
+- **Member Histories** lists conversations belonging to other accounts and opens them read-only for review; it does not expose the send box for a member conversation.
+- Normal members see only their own conversation list. Supabase row-level security remains the actual access boundary; the UI filter is not a substitute for RLS.
+- Member-history review requires the signed-in administrator to satisfy the existing `public.admins` policy check. Confirm the table has the expected `user_id` field.
+- Mafia AI can assist the administrator with planning, drafting announcements, and troubleshooting. This UI does not give the model direct permission to execute arbitrary administrator actions in the database.

@@ -7,7 +7,7 @@ const CFG_KEY='gv_supabase_config', SESSION_KEY='gv_supabase_session';
 const BUILTIN_SUPABASE={url:'https://bcinhmoyyjbkdcpkrztr.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjaW5obW95eWpia2RjcGtyenRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExMzAxNDksImV4cCI6MjEwNjcwNjE0OX0.n_GlM4exGN2eceSSxXpqhGTjckkt_sUhXGR22PdRo58'};
 let cfg=JSON.parse(localStorage.getItem(CFG_KEY)||'null')||BUILTIN_SUPABASE;
 let session=JSON.parse(localStorage.getItem(SESSION_KEY)||'null');
-let state=load(); state.downloadRequests=Array.isArray(state.downloadRequests)?state.downloadRequests:[]; let route='home'; let adminSession=false; let chatTimer=null; const PENDING_CONFIRM_KEY='gv_pending_confirmation_email';
+let state=load(); state.downloadRequests=Array.isArray(state.downloadRequests)?state.downloadRequests:[]; let route='home'; let adminSession=false; let chatTimer=null; let mafiaConversationId=null; let mafiaHistoryMode='mine'; let mafiaConversationRows=[]; let mafiaOpenedOwnerId=null; const PENDING_CONFIRM_KEY='gv_pending_confirmation_email';
 function cloneDefault(){return JSON.parse(JSON.stringify(DEFAULT))}
 function load(){try{const raw=localStorage.getItem('gv_state');return raw?JSON.parse(raw):cloneDefault()}catch{return cloneDefault()}}
 function save(){localStorage.setItem('gv_state',JSON.stringify(state))}
@@ -295,8 +295,8 @@ async function sync(){if(await loadRemote())render()}
 window.addEventListener('online',async()=>{await syncPendingGallery();await sync();toast('Back online')});window.addEventListener('offline',()=>toast('Offline: showing cached data'));
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 function render(){document.getElementById('app').innerHTML=`<div class="shell"><header class="top"><div class="brand"><img src="assets/grapevine-logo.jpg"><div><b>${esc(state.settings.name)}</b><small>Software Engineering Group</small></div></div><span class="status ${online()?'online':'offline'}">${online()?'ONLINE':'OFFLINE'}</span></header><main class="content">${view()}</main>${bottom()}</div>`;hydrateProfilePhotos().catch(()=>{});hydrateGallery().catch(()=>{})}
-function bottom(){return `<nav class="bottom">${[['home','⌂','Home'],['members','♙','Members'],['projects','▣','Projects'],['gallery','▧','Gallery'],['chat','💬','Chat'],['admin','⚙','Admin']].map(x=>`<button class="${route===x[0]?'active':''}" onclick="go('${x[0]}')"><span>${x[1]}</span>${x[2]}</button>`).join('')}</nav>`}
-function view(){if(route==='members')return members();if(route==='projects')return projects();if(route==='gallery')return gallery();if(route==='chat')return chat();if(route==='admin'||route.startsWith('admin-'))return admin();return home()}
+function bottom(){return `<nav class="bottom">${[['home','⌂','Home'],['members','♙','Members'],['projects','▣','Projects'],['gallery','▧','Gallery'],['chat','💬','Chat'],['mafia-ai','✦','Mafia AI'],['admin','⚙','Admin']].map(x=>`<button class="${route===x[0]?'active':''}" onclick="go('${x[0]}')"><span>${x[1]}</span>${x[2]}</button>`).join('')}</nav>`}
+function view(){if(route==='mafia-ai')return mafiaAI();if(route==='members')return members();if(route==='projects')return projects();if(route==='gallery')return gallery();if(route==='chat')return chat();if(route==='admin'||route.startsWith('admin-'))return admin();return home()}
 function home(){return `<section class="hero"><img src="assets/grapevine-logo.jpg"><div class="eyebrow">SOFTWARE ENGINEERING • CREATIVITY • TEAMWORK</div><h1>We Code. We Build. We Inspire.</h1><p>${esc(state.settings.description)}</p><p><b>${esc(state.settings.motto)}</b></p><div class="actions"><button class="btn gold" onclick="go('members')">Meet Members</button><button class="btn light" onclick="go('projects')">Explore Projects</button></div></section><h2>GRAPEVINE at a glance</h2><div class="grid"><div class="card"><div class="stat">${state.members.length}</div><p>Members</p></div><div class="card"><div class="stat">${state.projects.length}</div><p>Projects</p></div><div class="card"><div class="stat">${state.skills.length}</div><p>Skills</p></div><div class="card"><div class="stat">${state.gallery.length}</div><p>Gallery items</p></div></div><section class="home-overview"><div class="card"><div class="eyebrow">WELCOME TO GRAPEVINE</div><h2 class="overview-title">A place to connect, learn, build and grow.</h2><p class="overview-copy">Discover our members, explore projects, share skills and stay connected with the GRAPEVINE community.</p><div class="home-quick"><button class="btn gold" onclick="go('members')">Members</button><button class="btn light" onclick="go('projects')">Projects</button><button class="btn light" onclick="go('gallery')">Gallery</button></div></div><div class="home-cards"><article class="home-feature"><div class="feature-icon">👥</div><h3>Community</h3><p>Meet people, see member profiles and discover what the team can do.</p></article><article class="home-feature"><div class="feature-icon">🛠️</div><h3>Projects</h3><p>Explore practical ideas, software projects and collaborative work.</p></article><article class="home-feature"><div class="feature-icon">📚</div><h3>Skills</h3><p>Learn from shared experience and find skills across the community.</p></article><article class="home-feature"><div class="feature-icon">✓</div><h3>Trusted profiles</h3><p>Administrators can give the official blue check badge to verified members.</p></article></div></section><section class="home-info"><div class="info-head"><div><div class="eyebrow">ABOUT US</div><h2>More about GRAPEVINE</h2></div><span class="tag verified">Community</span></div><div class="welcome-note"><h3>A connected engineering community</h3><p>GRAPEVINE brings software engineers and technology enthusiasts together to learn, build practical solutions, share skills and grow as a team.</p></div><div class="info-grid"><article class="info-card"><div class="info-icon">💻</div><h3>Build</h3><p>Turn ideas into useful software, projects and digital solutions.</p></article><article class="info-card"><div class="info-icon">🧠</div><h3>Learn</h3><p>Share knowledge, skills and experience across the team.</p></article><article class="info-card"><div class="info-icon">🤝</div><h3>Connect</h3><p>Meet members, discover their skills and collaborate on projects.</p></article><article class="info-card"><div class="info-icon">🚀</div><h3>Grow</h3><p>Create opportunities for teamwork, creativity and professional growth.</p></article></div><div class="home-strip"><div class="card"><strong>Members</strong><span>${online()?'Live data synced with Supabase':'Using saved offline data'}</span></div><div class="card"><strong>Verification</strong><span>Admin-verified members display the official badge.</span></div></div></section><div class="card" style="margin-top:14px"><div class="eyebrow">CONTACT</div><h3>${esc(state.settings.email)}</h3><p>${esc(state.settings.phone)} • ${esc(state.settings.location)}</p></div>`}
 function members(){return `<div class="admin-head"><div><div class="eyebrow">THE TEAM</div><h2>Members</h2></div></div><div class="search"><input placeholder="Search members" oninput="filterMembers(this.value)"></div><div id="memberList">${memberCards(state.members)}</div>`}
 function memberCards(arr){return arr.map(m=>`<article class="card member"><img class="photo profile-photo" data-profile-id="${esc(m.id)}" data-photo-url="${esc(m.photo||'')}" src="assets/grapevine-logo.jpg" onerror="this.src='assets/grapevine-logo.jpg'"><div class="member-main"><div class="member-name"><h3 style="margin:0">${esc(m.name)}</h3>${m.verified?verifiedBadge():''}</div><div class="small">${esc(m.role)}</div><p>${esc(m.bio)}</p><div>${(m.skills||[]).map(s=>`<span class="tag">${esc(s)}</span>`).join('')}</div></div></article>`).join('')||'<div class="empty">No members found.</div>'}
@@ -344,7 +344,78 @@ async function loadDownloadRequests(){if(!adminSession){state.allDownloadRequest
 async function reviewDownloadRequest(id,status){try{if(!adminSession)throw Error('Administrator session required');const rows=await dbPatch('download_requests','id=eq.'+encodeURIComponent(id),{status,reviewed_by:session.user.id,reviewed_at:new Date().toISOString()});if(!Array.isArray(rows)||!rows.length)throw Error('Download request was not changed');await sync();await loadDownloadRequests();render();toast(status==='approved'?'Download approved for the member':'Download request rejected')}catch(e){toast(friendly(e))}}
 async function approveGallery(id){try{if(!adminSession)throw Error('Administrator session required');const rows=await dbPatch('content_items','id=eq.'+encodeURIComponent(id),{approved:true});if(!Array.isArray(rows)||!rows.length)throw Error('Showcase approval failed');await sync();render();toast('Gallery media approved for viewing')}catch(e){toast(friendly(e))}}
 function adminSettings(){const s=state.settings;return `<div class="card"><h3>App-wide settings</h3>${['name','motto','description','email','phone','location'].map(k=>`<div class="field"><label>${k}</label><input id="set-${k}" value="${esc(s[k]||'')}"></div>`).join('')}<button class="btn primary" onclick="saveSettings()">Save changes online</button><button class="btn light" onclick="showConfigChange()">Change Supabase connection</button></div>`}
-function chat(){if(!configured())return `<section class="card"><h2>Chat</h2><p>Connect Supabase first to use secure online chat.</p></section>`;if(!session)return chatLogin();return `<section class="card"><div class="eyebrow">GRAPEVINE CHAT</div><h2>Chat with the team</h2><p>Send a message to the GRAPEVINE administrators.</p><div id="chatMessages" class="chat-box"><div class="empty">Loading messages…</div></div><div class="field"><textarea id="chatInput" rows="3" placeholder="Write your message…"></textarea></div><button class="btn primary" onclick="sendChat(false)">Send message</button><button class="btn light" onclick="signout()">Sign out</button></section>`}
+function chat(){return `<div class="ai-tabs"><button class="btn primary" onclick="go('chat')">Team Chat</button><button class="btn gold" onclick="go('mafia-ai')">Mafia AI</button></div>${teamChat()}`}
+function teamChat(){if(!configured())return `<section class="card"><h2>Chat</h2><p>Connect Supabase first to use secure online chat.</p></section>`;if(!session)return chatLogin();return `<section class="card"><div class="eyebrow">GRAPEVINE CHAT</div><h2>Chat with the team</h2><p>Send a message to the GRAPEVINE administrators.</p><div id="chatMessages" class="chat-box"><div class="empty">Loading messages…</div></div><div class="field"><textarea id="chatInput" rows="3" placeholder="Write your message…"></textarea></div><button class="btn primary" onclick="sendChat(false)">Send message</button><button class="btn light" onclick="signout()">Sign out</button></section>`}
+
+function mafiaAI(){
+  if(!configured())return `<section class="card"><h2>Mafia AI</h2><p>Connect Supabase to use Mafia AI.</p></section>`;
+  if(!session?.access_token)return `<section class="card"><div class="eyebrow">POWERED BY MAFIA BOSS</div><h2>Mafia AI</h2><p>Sign in with your GRAPEVINE account to use Mafia AI and save your conversation history.</p><button class="btn primary" onclick="go('chat')">Sign in / Create account</button></section>`;
+  const adminTools=adminSession?`<div class="actions mafia-mode-tabs"><button class="btn ${mafiaHistoryMode==='mine'?'primary':'light'}" onclick="setMafiaHistoryMode('mine')">My Private AI</button><button class="btn ${mafiaHistoryMode==='members'?'primary':'light'}" onclick="setMafiaHistoryMode('members')">Member Histories</button></div><p class="small">${mafiaHistoryMode==='mine'?'Your private conversations. Members cannot view these chats.':'Read-only review of member conversations. Select a member chat to inspect it; replies are disabled.'}</p>`:'';
+  const isReadOnly=!!(adminSession&&mafiaOpenedOwnerId&&mafiaOpenedOwnerId!==session.user.id);
+  return `<section class="card mafia-card"><div class="eyebrow">POWERED BY MAFIA BOSS</div><h2>✦ ${adminSession?'Mafia AI • Admin':'Mafia AI'}</h2><p>${adminSession&&mafiaHistoryMode==='members'?'Review member AI conversations securely.':'Your AI assistant. Your conversation history is saved to your account.'}</p>${adminTools}<div class="actions"><button class="btn primary" onclick="newMafiaConversation()">＋ New ${adminSession&&mafiaHistoryMode==='mine'?'private ':''}conversation</button><button class="btn light" onclick="loadMafiaConversations()">↻ Refresh history</button></div><div id="mafiaHistory" class="mafia-history">Loading saved conversations…</div><div id="mafiaThread" class="chat-box mafia-thread"><div class="empty">Choose a conversation or start a new one.</div></div><div id="mafiaComposer" ${isReadOnly?'hidden':''}><div class="field"><textarea id="mafiaInput" rows="3" placeholder="Ask your private Mafia AI anything…"></textarea></div><button class="btn primary" onclick="sendMafiaMessage()">Send to Mafia AI</button></div>${isReadOnly?'<p class="notice">Admin review mode: this member conversation is read-only.</p>':''}<div id="mafiaStatus" class="small"></div></section>`;
+}
+function setMafiaHistoryMode(mode){if(!adminSession)return toast('Administrator access required');mafiaHistoryMode=mode==='members'?'members':'mine';mafiaConversationId=null;mafiaOpenedOwnerId=null;render();loadMafiaConversations().catch(()=>{});}
+async function loadMafiaConversations(){
+ const history=document.getElementById('mafiaHistory');if(!history||!session?.access_token)return;
+ history.textContent='Loading saved conversations…';
+ try{
+   const rows=await authFetch('/rest/v1/mafia_ai_conversations?select=id,title,owner_email,user_id,updated_at&order=updated_at.desc&limit=200');
+   mafiaConversationRows=Array.isArray(rows)?rows:[];
+   const list=adminSession&&mafiaHistoryMode==='members'?mafiaConversationRows.filter(c=>String(c.user_id)!==String(session.user.id)):mafiaConversationRows.filter(c=>String(c.user_id)===String(session.user.id));
+   if(!list.length){history.innerHTML=adminSession&&mafiaHistoryMode==='members'?'<p class="small">No member conversations found.</p>':'<p class="small">No private conversations yet. Choose New conversation to begin.</p>';return}
+   history.innerHTML=list.map(c=>`<div class="mafia-history-row"><button class="mafia-history-open" onclick="openMafiaConversation('${esc(c.id)}')">${esc(c.title||'New conversation')}${adminSession&&mafiaHistoryMode==='members'?`<small>${esc(c.owner_email||'Member account')}</small>`:''}</button>${adminSession&&mafiaHistoryMode==='members'?`<span class="tag">Review</span>`:''}</div>`).join('');
+   if(mafiaConversationId&&list.some(c=>String(c.id)===String(mafiaConversationId)))await openMafiaConversation(mafiaConversationId);
+ }catch(e){history.innerHTML=`<p class="small">Could not load history. Check that the Mafia AI SQL setup and access policies have been run. ${esc(friendly(e))}</p>`}
+}
+async function newMafiaConversation(){
+ if(!session?.user?.id)return toast('Sign in to use Mafia AI');
+ if(adminSession&&mafiaHistoryMode==='members')return toast('Switch to My Private AI to start your own conversation');
+ try{
+  const email=session.user.email||'';
+  const rows=await dbInsert('mafia_ai_conversations',{user_id:session.user.id,owner_email:email,title:'New conversation'});
+  if(!Array.isArray(rows)||!rows[0]?.id)throw Error('Could not create a saved conversation');
+  mafiaConversationId=rows[0].id;mafiaOpenedOwnerId=session.user.id;
+  await loadMafiaConversations();await openMafiaConversation(mafiaConversationId);
+  document.getElementById('mafiaInput')?.focus();
+ }catch(e){toast('Mafia AI history setup error: '+friendly(e))}
+}
+async function openMafiaConversation(id){
+ const meta=mafiaConversationRows.find(c=>String(c.id)===String(id));
+ if(!meta)return toast('Refresh history and choose a listed conversation');
+ if(adminSession&&mafiaHistoryMode==='mine'&&String(meta.user_id)!==String(session.user.id))return toast('This is not your private conversation');
+ if(adminSession&&mafiaHistoryMode==='members'&&String(meta.user_id)===String(session.user.id))return toast('Your private conversation is in My Private AI');
+ if(!adminSession&&String(meta.user_id)!==String(session.user.id))return toast('You can only open your own conversations');
+ mafiaConversationId=id;mafiaOpenedOwnerId=meta.user_id;
+ const composer=document.getElementById('mafiaComposer');if(composer)composer.hidden=String(meta.user_id)!==String(session.user.id);
+ const thread=document.getElementById('mafiaThread');if(!thread)return;
+ thread.innerHTML='<div class="empty">Loading conversation…</div>';
+ try{
+  const rows=await authFetch('/rest/v1/mafia_ai_messages?select=id,role,content,created_at&conversation_id=eq.'+encodeURIComponent(id)+'&order=created_at.asc&limit=200');
+  const messages=Array.isArray(rows)?rows:[];
+  thread.innerHTML=messages.length?messages.map(m=>`<div class="chat-msg ${m.role==='user'?'mine':''}"><b>${m.role==='user'?'You':'Mafia AI'}</b><p>${esc(m.content||'').replace(/\n/g,'<br>')}</p><small>${esc(m.created_at?new Date(m.created_at).toLocaleString():'')}</small></div>`).join(''):'<div class="empty">Start the conversation by sending a message below.</div>';
+  thread.scrollTop=thread.scrollHeight;
+ }catch(e){thread.innerHTML=`<div class="notice">Unable to load this conversation: ${esc(friendly(e))}</div>`}
+}
+async function sendMafiaMessage(){
+ if(adminSession&&mafiaHistoryMode==='members')return toast('Member history is read-only. Switch to My Private AI to chat.');
+ const input=document.getElementById('mafiaInput');const status=document.getElementById('mafiaStatus');
+ const message=(input?.value||'').trim();if(!message)return toast('Write a message first');
+ if(!session?.access_token)return toast('Sign in to use Mafia AI');
+ if(mafiaConversationId&&mafiaOpenedOwnerId&&String(mafiaOpenedOwnerId)!==String(session.user.id))return toast('You can only send messages in your own conversation');
+ if(!mafiaConversationId){await newMafiaConversation();if(!mafiaConversationId)return}
+ const button=Array.from(document.querySelectorAll('button')).find(b=>b.getAttribute('onclick')==='sendMafiaMessage()');
+ if(button){button.disabled=true;button.textContent='Thinking…'}
+ if(status)status.textContent='Mafia AI is thinking…';
+ try{
+  const r=await fetch(cfg.url.replace(/\/$/,'')+'/functions/v1/mafia-ai-chat',{method:'POST',headers:headers(),body:JSON.stringify({conversation_id:mafiaConversationId,message})});
+  const payload=await r.json().catch(()=>({}));
+  if(!r.ok)throw Error(payload.error||payload.message||payload.msg||('Mafia AI request failed ('+r.status+')'));
+  input.value='';if(status)status.textContent='';
+  await openMafiaConversation(mafiaConversationId);await loadMafiaConversations();
+ }catch(e){if(status)status.textContent='';toast('Mafia AI: '+friendly(e))}
+ finally{if(button){button.disabled=false;button.textContent='Send to Mafia AI'}}
+}
+
 function confirmationHelp(email=''){const e=String(email||localStorage.getItem(PENDING_CONFIRM_KEY)||'').trim();return `<div class="notice confirmation-box"><b>📧 Email confirmation required</b><p class="small">${e?`We sent the confirmation link to <b>${esc(e)}</b>.`: 'Check the email address you used to register.'} Check Inbox, Spam/Junk and Promotions.</p><div class="actions"><button class="btn gold" onclick="openEmailApp()">Open Email App</button><button class="btn light" onclick="resendConfirmation()">Resend confirmation</button></div><p class="small">If no message arrives after resending, the Supabase project must have a working SMTP/email provider configured. The app cannot deliver an email by itself.</p></div>`}
 
 function chatLogin(){const pending=localStorage.getItem(PENDING_CONFIRM_KEY)||'';return `<section class="card"><div class="eyebrow">MEMBER CHAT</div><h2>Sign in to chat</h2><p>Use your GRAPEVINE member email and password. New members must confirm their email before signing in.</p>${pending?confirmationHelp(pending):''}<div class="field"><label>Email</label><input id="chat-email" type="email" autocomplete="username" value="${esc(pending)}"></div><div class="field"><label>Password</label><input id="chat-pass" type="password" autocomplete="current-password"></div><button class="btn primary" onclick="doChatLogin()">Sign in</button><button class="btn gold" onclick="showMemberSignup()">Create member account</button><button class="btn light" onclick="resendConfirmation()">Resend confirmation email</button><div class="notice">This is a normal email/password account. GRAPEVINE does not use anonymous sign-in for member chat.</div></section>`}
@@ -517,6 +588,13 @@ async function go(r){
   }
   route=r;
   render();
+  if(r==='mafia-ai'){
+    if(chatTimer){clearInterval(chatTimer);chatTimer=null;}
+    render();
+    if(session)loadMafiaConversations().catch(()=>{});
+    if(configured())sync().catch(()=>{});
+    return;
+  }
   if(r==='chat'){
     if(session)loadChat();
     if(chatTimer)clearInterval(chatTimer);

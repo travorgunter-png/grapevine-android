@@ -19,6 +19,15 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.graphics.Color;
 import android.widget.Toast;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.ImageView;
+import android.widget.TextView;
+import android.view.Gravity;
+import android.view.View;
+import android.graphics.Typeface;
+import android.os.Handler;
+import android.os.Looper;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Locale;
@@ -28,6 +37,7 @@ public class MainActivity extends Activity {
     private static final int FILE_CHOOSER_REQUEST = 4101;
     private ValueCallback<Uri[]> filePathCallback;
     private WebView webView;
+    private FrameLayout rootLayout;
     private String pendingAuthUrl;
     private boolean webReady=false;
 
@@ -36,8 +46,12 @@ public class MainActivity extends Activity {
         getWindow().setStatusBarColor(Color.rgb(17,24,39));
         getWindow().setNavigationBarColor(Color.WHITE);
 
+        rootLayout = new FrameLayout(this);
         webView = new WebView(this);
-        setContentView(webView);
+        rootLayout.addView(webView, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        setContentView(rootLayout);
+        showMafiaBossSplash();
 
         WebSettings s = webView.getSettings();
         s.setJavaScriptEnabled(true);
@@ -79,6 +93,45 @@ public class MainActivity extends Activity {
 
         webView.loadUrl("https://appassets.androidplatform.net/index.html");
         handleAuthIntent(getIntent());
+    }
+
+    private void showMafiaBossSplash() {
+        final LinearLayout splash = new LinearLayout(this);
+        splash.setOrientation(LinearLayout.VERTICAL);
+        splash.setGravity(Gravity.CENTER);
+        splash.setBackgroundColor(Color.rgb(17, 24, 39));
+        splash.setClickable(true);
+
+        ImageView logo = new ImageView(this);
+        logo.setImageResource(R.drawable.grapevine_badge_launcher);
+        logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(176, 176);
+        logoParams.bottomMargin = 28;
+        splash.addView(logo, logoParams);
+
+        TextView brand = new TextView(this);
+        brand.setText("GRAPEVINE");
+        brand.setTextColor(Color.WHITE);
+        brand.setTextSize(27);
+        brand.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        brand.setGravity(Gravity.CENTER);
+        splash.addView(brand);
+
+        TextView powered = new TextView(this);
+        powered.setText("Powered By Mafia Boss");
+        powered.setTextColor(Color.rgb(213, 168, 76));
+        powered.setTextSize(15);
+        powered.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams poweredParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        poweredParams.topMargin = 12;
+        splash.addView(powered, poweredParams);
+
+        rootLayout.addView(splash, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            if (splash.getParent() == rootLayout) rootLayout.removeView(splash);
+        }, 1500);
     }
 
     private void handleAuthIntent(Intent intent) {
