@@ -1,33 +1,39 @@
 # GRAPEVINE V26 for Windows
 
-This adds a Windows desktop wrapper around the existing Grapevine web assets. It preserves the existing Grapevine launcher badge as the desktop app icon and displays a brief `GRAPEVINE — Powered By Mafia Boss` startup splash. It does not replace the existing Android project or its build workflow.
+This project builds a Windows desktop wrapper around the existing Grapevine app assets. It keeps the existing Grapevine badge as the desktop icon and shows the “GRAPEVINE — Powered By Mafia Boss” startup splash. The Android workflow is separate and is not changed by the Windows workflow.
 
-## Build a Windows installer / portable EXE using GitHub Actions
+## Build the Windows app
 
-1. Upload/commit the entire project folder contents to the existing GitHub repository, preserving the `app/` folder and `.github/workflows/build-windows.yml`.
-2. Open the repository on GitHub and select **Actions**.
-3. Choose **Build GRAPEVINE Windows App** from the left side.
-4. Select **Run workflow**, then confirm **Run workflow**.
-5. Open the completed workflow run. Under **Artifacts**, download `GRAPEVINE-Windows-V26` and extract it.
-6. Use `GRAPEVINE Setup 26.0.0.exe` to install, or `GRAPEVINE-26-Portable.exe` to run without installation (artifact names may vary slightly by electron-builder).
+1. Commit the full project, preserving `windows-app/` and `.github/workflows/build-windows.yml`.
+2. Open GitHub **Actions** and choose **Build GRAPEVINE Windows App**.
+3. Select **Run workflow** and wait for the run to finish successfully.
+4. Download the `GRAPEVINE-Windows-V26` artifact and extract it.
+5. The artifact should contain the installer EXE, portable EXE, and `SHA256SUMS.txt` checksums.
 
-## Local development (Windows with Node.js installed)
+## SmartScreen and malware scanning
+
+This project cannot guarantee a “no warning” result from Microsoft Defender SmartScreen. SmartScreen reputation is independent of whether the app builds correctly. Newly built, unsigned EXEs commonly show “Windows protected your PC”; that warning alone does not prove malware, but it must not be ignored.
+
+For a more professional distribution, obtain a trusted Windows code-signing certificate and add two GitHub Actions repository secrets under **Settings → Secrets and variables → Actions**:
+
+- `WINDOWS_CODESIGN_CERTIFICATE`: certificate file in the format supported by electron-builder (commonly a base64-encoded PFX certificate, following electron-builder's documented configuration).
+- `WINDOWS_CODESIGN_PASSWORD`: password for that certificate.
+
+Only use a certificate you legitimately own or are authorized to use. Never put certificate files/passwords or API keys into the source repository. Signing can identify the publisher and may improve reputation over time, but it does not guarantee SmartScreen warnings disappear immediately.
+
+The workflow writes SHA-256 hashes to `SHA256SUMS.txt` so you can verify the downloaded files have not changed. A checksum confirms file integrity, not that a file is malware-free.
+
+## Test before distribution
+
+Test sign-in, member profiles, gallery uploads/downloads, chat, Mafia AI, and admin access against your configured Supabase project. Keep `GEMINI_API_KEY` in Supabase Edge Function secrets; never place it in the desktop app. Do not distribute the app until you have scanned and tested the actual built EXE.
+
+## Local development
+
+With Node.js installed on Windows:
 
 ```powershell
 cd windows-app
 npm install
 npm start
-```
-
-To create EXE files locally:
-
-```powershell
 npm run dist:win
 ```
-
-## Important
-
-- This source ZIP does not itself contain a compiled Windows EXE; GitHub Actions creates the EXE on a Windows runner.
-- Supabase must remain configured correctly for sign-in, gallery, team chat, admin tools, and Mafia AI. Keep `GEMINI_API_KEY` in Supabase Edge Function secrets; never place it in this desktop package.
-- The app uses the same client-side app assets as the supplied V26 Android project. Test sign-in, gallery uploads/downloads, team chat, Mafia AI, and admin permissions on Windows before distributing it.
-- Windows may show a SmartScreen warning because the EXE is not code-signed. Do not bypass warnings unless you trust the source and have verified the build.
