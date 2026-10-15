@@ -1,0 +1,34 @@
+{
+  "name": "grapevine-desktop",
+  "version": "26.0.0",
+  "description": "GRAPEVINE desktop app for Windows",
+  "main": "main.cjs",
+  "author": "GRAPEVINE",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win nsis portable"
+  },
+  "devDependencies": {
+    "electron": "^37.2.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.grapevine.desktop",
+    "productName": "GRAPEVINE",
+    "directories": { "output": "dist" },
+    "files": ["**/*", "!dist/**", "!node_modules/.cache/**"],
+    "win": {
+      "icon": "grapevine.ico",
+      "target": ["nsis", "portable"]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "GRAPEVINE"
+    },
+    "portable": { "artifactName": "GRAPEVINE-26-Portable.exe" }
+  }
+}
