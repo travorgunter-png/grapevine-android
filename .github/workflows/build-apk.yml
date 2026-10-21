@@ -1,5 +1,5 @@
 
-name: Build Grapevine Android APK
+name: Build Signed Grapevine Android APK
 
 on:
   workflow_dispatch:
@@ -11,12 +11,12 @@ permissions:
   contents: read
 
 jobs:
-  build-apk:
-    name: Build Android APK
+  build:
+    name: Build and Sign Grapevine
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout source
+      - name: Checkout project
         uses: actions/checkout@v4
 
       - name: Set up Java 17
@@ -25,23 +25,65 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Gradle
+      - name: Set up Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
 
-      - name: Verify Firebase configuration
+      - name: Verify project and Firebase configuration
+        shell: bash
         run: |
-          test -f app/google-services.json || {
-            echo "ERROR: app/google-services.json is missing"
-            exit 1
-          }
+          test -f settings.gradle
+          test -f build.gradle
+          test -f app/build.gradle
+          test -f app/google-services.json
+          echo "Required project files found."
 
-      - name: Build Android release APK
+      - name: Build release APK
         run: gradle --no-daemon assembleRelease
 
-      - name: Upload APK
+      - name: Sign release APK
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          test -n "$ANDROID_KEYSTORE_PASSWORD"
+          test -n "$ANDROID_KEY_PASSWORD"
+          test -n "$ANDROID_KEY_ALIAS"
+
+          KEYSTORE="$RUNNER_TEMP/grapevine-release.jks"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
+          test -s "$KEYSTORE"
+
+          UNSIGNED="app/build/outputs/apk/release/app-release-unsigned.apk"
+          test -f "$UNSIGNED"
+
+          BUILD_TOOLS_VERSION=$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)
+          APKSIGNER="$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION/apksigner"
+
+          test -x "$APKSIGNER"
+
+          "$APKSIGNER" sign \
+            --ks "$KEYSTORE" \
+            --ks-key-alias "$ANDROID_KEY_ALIAS" \
+            --ks-pass env:ANDROID_KEYSTORE_PASSWORD \
+            --key-pass env:ANDROID_KEY_PASSWORD \
+            --out "$RUNNER_TEMP/Grapevine-V28-Signed.apk" \
+            "$UNSIGNED"
+
+          "$APKSIGNER" verify --verbose "$RUNNER_TEMP/Grapevine-V28-Signed.apk"
+          rm -f "$KEYSTORE"
+
+      - name: Upload signed APK
         uses: actions/upload-artifact@v4
         with:
-          name: GRAPEVINE-Android-V28
-          path: app/build/outputs/apk/release/*.apk
+          name: Grapevine-V28-Signed-APK
+          path: ${{ runner.temp }}/Grapevine-V28-Signed.apk
           if-no-files-found: error
           retention-days: 14
