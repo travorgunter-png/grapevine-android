@@ -244,12 +244,45 @@ function headers(extra={}){return {'apikey':cfg.key,'Content-Type':'application/
 async function authFetch(path,opts={},retry=true){if(!configured())throw Error('Supabase is not configured');const requestHeaders=headers(opts.headers||{});if(opts.body===undefined||opts.body===null)delete requestHeaders['Content-Type'];let r=await fetch(cfg.url.replace(/\/$/,'')+path,{...opts,headers:requestHeaders});if(r.status===401&&retry&&session?.refresh_token){try{await refreshSession();return authFetch(path,opts,false)}catch{}}if(!r.ok){let t=await r.text();throw Error(t||('HTTP '+r.status))}if(r.status===204)return null;const responseText=await r.text();return responseText?JSON.parse(responseText):null}
 async function refreshSession(){if(!session?.refresh_token)throw Error('Session expired');const r=await fetch(cfg.url.replace(/\/$/,'')+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:headers(),body:JSON.stringify({refresh_token:session.refresh_token})});if(!r.ok)throw Error('Session expired');session=await r.json();localStorage.setItem(SESSION_KEY,JSON.stringify(session));return session}
 
-async function registerPushToken(){
-  try{
-    if(!session?.user?.id||!session?.access_token||!window.GrapevineAndroid||typeof GrapevineAndroid.getFirebaseToken!=='function')return;
-    const token=String(GrapevineAndroid.getFirebaseToken()||'').trim(); if(!token)return;
-    await authFetch('/rest/v1/device_tokens?on_conflict=token',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:JSON.stringify({user_id:session.user.id,token:token,platform:'android',updated_at:new Date().toISOString()})});
-  }catch(e){console.warn('Push token registration is not ready:',e?.message||e)}
+async function registerPushToken() {
+  try {
+    if (!session?.user?.id || !session?.access_token) return;
+
+    if (
+      !window.GrapevineAndroid ||
+      typeof window.GrapevineAndroid.getFirebaseToken !== 'function'
+    ) {
+      return;
+    }
+
+    const token = String(
+      window.GrapevineAndroid.getFirebaseToken() || ''
+    ).trim();
+
+    if (!token) return;
+
+    await authFetch(
+      '/rest/v1/fcm_device_tokens?on_conflict=token',
+      {
+        method: 'POST',
+        headers: {
+          Prefer: 'resolution=merge-duplicates,return=representation'
+        },
+        body: JSON.stringify({
+          user_id: session.user.id,
+          token: token,
+          updated_at: new Date().toISOString()
+        })
+      }
+    );
+
+    console.log('Grapevine push token registered successfully.');
+  } catch (error) {
+    console.error(
+      'Grapevine push-token registration failed:',
+      error?.message || error
+    );
+  }
 }
 async function login(email,password){email=(email||'').trim().toLowerCase();password=password||'';if(!email||!password)throw Error('Enter your email and password');const r=await fetch(cfg.url.replace(/\/$/,'')+'/auth/v1/token?grant_type=password',{method:'POST',headers:headers(),body:JSON.stringify({email,password})});const x=await r.json().catch(()=>({}));if(!r.ok){const code=String(x.error_code||x.code||'').toLowerCase();const msg=String(x.error_description||x.msg||x.message||'').toLowerCase();if(code.includes('email_not_confirmed')||msg.includes('email not confirmed')){localStorage.setItem(PENDING_CONFIRM_KEY,email);throw Error('Your email is not confirmed yet. Open the confirmation email, then return here and sign in again.')}if(code.includes('invalid_credentials')||msg.includes('invalid login credentials'))throw Error('Email or password is incorrect. If this is a new account, confirm the email first.');throw Error(x.error_description||x.msg||x.message||'Sign in failed. Please check your email, password and email confirmation.')}if(!x.access_token||!x.user)throw Error('Sign in did not return a valid member session.');session=x;localStorage.setItem(SESSION_KEY,JSON.stringify(session));localStorage.removeItem(PENDING_CONFIRM_KEY);setTimeout(registerPushToken,500);return session}
 async function signup(name,email,password){
