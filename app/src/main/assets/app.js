@@ -1,10 +1,11 @@
+```javascript
 /* GRAPEVINE — Supabase-connected edition
    Security model: Supabase Auth + public.admins + Row Level Security.
    Never put a Supabase service-role/secret key in this app.
 */
 const DEFAULT={settings:{name:'GRAPEVINE',motto:'Code Today. Build Tomorrow. Inspire Forever.',description:'A software engineering group built around collaboration, innovation and practical technology.',email:'grapevine@example.com',phone:'+256 700 000 000',location:'Uganda'},members:Array.from({length:11},(_,i)=>({id:'m'+(i+1),name:'Member '+(i+1),role:'Software Engineering Team',bio:'GRAPEVINE member profile. Update this profile from the admin dashboard.',skills:['Programming','Teamwork'],verified:i===0,photo:''})),projects:[{id:'p1',title:'Project One',description:'Project description and results.',tags:['Web','Software']}],skills:[{id:'s1',title:'Web Development',description:'HTML, CSS, JavaScript and responsive interfaces.'}],gallery:[{id:'g1',title:'Our identity',image:'assets/grapevine-logo.jpg'}]};
 const CFG_KEY='gv_supabase_config', SESSION_KEY='gv_supabase_session';
-const BUILTIN_SUPABASE={url:'https://bcinhmoyyjbkdcpkrztr.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjaW5obW95eWpia2RjcGtyenRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExMzAxNDksImV4cCI6MjEwNjcwNjE0OX0.n_GlM4exGN2eceSSxXpqhGTjckkt_sUhXGR22PdRo58'};
+const BUILTIN_SUPABASE={url:'https://bcinhmoyyjbkdcpkrztr.supabase.co',key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJIUzI1NiIsInJlZiI6ImJjaW5obW95eWpia2RjcGtyenRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExMzAxNDksImV4cCI6MjEwNjcwNjE0OX0.n_GlM4exGN2eceSSxXpqhGTjckkt_sUhXGR22PdRo58'};
 let cfg=JSON.parse(localStorage.getItem(CFG_KEY)||'null')||BUILTIN_SUPABASE;
 let session=JSON.parse(localStorage.getItem(SESSION_KEY)||'null');
 let state=load(); state.downloadRequests=Array.isArray(state.downloadRequests)?state.downloadRequests:[]; state.notifications=Array.isArray(state.notifications)?state.notifications:[]; let route='home'; let adminSession=false; let chatTimer=null; let mafiaConversationId=null; let mafiaHistoryMode='mine'; let mafiaConversationRows=[]; let mafiaOpenedOwnerId=null; const PENDING_CONFIRM_KEY='gv_pending_confirmation_email';
@@ -247,22 +248,16 @@ async function refreshSession(){if(!session?.refresh_token)throw Error('Session 
 async function registerPushToken() {
   try {
     if (!session?.user?.id || !session?.access_token) return;
+    if (!configured() || !online()) return;
 
-    if (
-      !window.GrapevineAndroid ||
-      typeof window.GrapevineAndroid.getFirebaseToken !== 'function'
-    ) {
-      return;
-    }
+    const bridge = window.GrapevineAndroid;
+    if (!bridge || typeof bridge.getFirebaseToken !== 'function') return;
 
-    const token = String(
-      window.GrapevineAndroid.getFirebaseToken() || ''
-    ).trim();
-
+    const token = String(bridge.getFirebaseToken() || '').trim();
     if (!token) return;
 
     await authFetch(
-      '/rest/v1/fcm_device_tokens?on_conflict=token',
+      '/rest/v1/fcm_device_tokens?on_conflict=fcm_token',
       {
         method: 'POST',
         headers: {
@@ -270,21 +265,19 @@ async function registerPushToken() {
         },
         body: JSON.stringify({
           user_id: session.user.id,
-          token: token,
+          fcm_token: token,
+          platform: 'android',
+          device_name: 'Grapevine Android',
           updated_at: new Date().toISOString()
         })
       }
     );
 
-    console.log('Grapevine push token registered successfully.');
+    console.log('Grapevine FCM device registered.');
   } catch (error) {
-    console.error(
-      'Grapevine push-token registration failed:',
-      error?.message || error
-    );
+    console.error('Grapevine FCM registration failed:', error?.message || error);
   }
-}
-async function login(email,password){email=(email||'').trim().toLowerCase();password=password||'';if(!email||!password)throw Error('Enter your email and password');const r=await fetch(cfg.url.replace(/\/$/,'')+'/auth/v1/token?grant_type=password',{method:'POST',headers:headers(),body:JSON.stringify({email,password})});const x=await r.json().catch(()=>({}));if(!r.ok){const code=String(x.error_code||x.code||'').toLowerCase();const msg=String(x.error_description||x.msg||x.message||'').toLowerCase();if(code.includes('email_not_confirmed')||msg.includes('email not confirmed')){localStorage.setItem(PENDING_CONFIRM_KEY,email);throw Error('Your email is not confirmed yet. Open the confirmation email, then return here and sign in again.')}if(code.includes('invalid_credentials')||msg.includes('invalid login credentials'))throw Error('Email or password is incorrect. If this is a new account, confirm the email first.');throw Error(x.error_description||x.msg||x.message||'Sign in failed. Please check your email, password and email confirmation.')}if(!x.access_token||!x.user)throw Error('Sign in did not return a valid member session.');session=x;localStorage.setItem(SESSION_KEY,JSON.stringify(session));localStorage.removeItem(PENDING_CONFIRM_KEY);setTimeout(registerPushToken,500);return session}
+  async function login(email,password){email=(email||'').trim().toLowerCase();password=password||'';if(!email||!password)throw Error('Enter your email and password');const r=await fetch(cfg.url.replace(/\/$/,'')+'/auth/v1/token?grant_type=password',{method:'POST',headers:headers(),body:JSON.stringify({email,password})});const x=await r.json().catch(()=>({}));if(!r.ok){const code=String(x.error_code||x.code||'').toLowerCase();const msg=String(x.error_description||x.msg||x.message||'').toLowerCase();if(code.includes('email_not_confirmed')||msg.includes('email not confirmed')){localStorage.setItem(PENDING_CONFIRM_KEY,email);throw Error('Your email is not confirmed yet. Open the confirmation email, then return here and sign in again.')}if(code.includes('invalid_credentials')||msg.includes('invalid login credentials'))throw Error('Email or password is incorrect. If this is a new account, confirm the email first.');throw Error(x.error_description||x.msg||x.message||'Sign in failed. Please check your email, password and email confirmation.')}if(!x.access_token||!x.user)throw Error('Sign in did not return a valid member session.');session=x;localStorage.setItem(SESSION_KEY,JSON.stringify(session));localStorage.removeItem(PENDING_CONFIRM_KEY);setTimeout(registerPushToken,500);return session}
 async function signup(name,email,password){
   name=(name||'').trim();
   email=(email||'').trim().toLowerCase();
@@ -394,69 +387,7 @@ function gallery(){
     else if(req?.status==='rejected'){approvalNotice+=`<div class="notice danger">Download request was rejected. You can request permission again.</div>`;downloadControl=`<button class="btn gold" onclick="requestGalleryDownload('${esc(g.id)}')">Request download again</button>`;}
     else downloadControl=`<button class="btn light" onclick="requestGalleryDownload('${esc(g.id)}')">Download</button>`;
     return `<article class="card">${media}<h3>${esc(g.title||'Showcase media')}</h3><p>${esc(g.description||'')}</p>${approvalNotice}<div class="actions">${downloadControl}</div></article>`}).join('');
-  return `<div class="eyebrow">MEMORIES</div><div class="admin-head"><div><h2>Gallery</h2><p class="small">Upload image, video or audio media. Showcase uploads need administrator approval. Downloads also require individual administrator approval.</p></div>${canUpload?'<button class="btn gold" onclick="openGalleryUpload()">＋ Upload Media</button>':''}</div><div class="actions" style="margin-bottom:12px">${session?'<button class="btn light" onclick="refreshGallery()">↻ Refresh approval status</button>':''}</div><div class="grid">${cards||'<div class="empty">No showcase media yet.</div>'}</div>`;
-}
-async function refreshGallery(){try{await sync();toast('Gallery and approval status refreshed')}catch(e){toast(friendly(e))}}
-async function requestGalleryDownload(id){
-  if(!session?.user?.id){go('chat');return}
-  try{
-    const item=state.gallery.find(x=>String(x.id)===String(id));if(!item)return toast('Media not found');
-    const existing=latestDownloadRequest(id);
-    if(existing?.status==='pending')return toast('Download request already sent. Waiting for admin approval.');
-    if(existing?.status==='approved')return downloadGalleryMedia(id,item.image,item.title);
-    const rows=await dbInsert('download_requests',{content_id:id,requester_id:session.user.id,status:'pending'});
-    if(!Array.isArray(rows)||!rows.length)throw Error('Download request could not be created');
-    await sync();render();toast('Download request sent. Please wait for admin approval.');
-  }catch(e){toast('Download request failed: '+friendly(e))}
-}
-async function downloadGalleryMedia(id,url,title){if(!url)return toast('Media is not available for download');const item=state.gallery.find(x=>String(x.id)===String(id));if(!item?.approved)return toast('This showcase media is still waiting for admin approval');const req=latestDownloadRequest(id);if(!adminSession&&req?.status!=='approved')return toast('Your download request is waiting for admin approval');const ext=(item.media_type==='video'?'mp4':item.media_type==='audio'?'mp3':'jpg');const filename=((title||'grapevine-media').replace(/[^a-z0-9._-]+/gi,'-')||'grapevine-media')+'.'+ext;if(window.GrapevineAndroid?.downloadMedia){window.GrapevineAndroid.downloadMedia(url,filename);return}try{const r=await fetch(url,{mode:'cors',cache:'no-store'});if(!r.ok)throw Error('Download failed');const blob=await r.blob();const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.rel='noopener';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)}catch{window.open(url,'_blank','noopener')}}
-function admin(){if(!configured())return configView();if(!session)return adminLogin();if(!adminSession)return `<section class="card"><div class="eyebrow">SECURE ADMIN</div><h2>Checking administrator access…</h2><p>Your Supabase account is being checked against the <b>admins</b> table. A normal member account cannot enter the control centre.</p></section>`;return adminPanel()}
-function configView(){return `<section class="card"><div class="eyebrow">FIRST-TIME SETUP</div><h2>Connect GRAPEVINE</h2><p>Enter your Supabase <b>Project URL</b> and <b>Publishable/anon key</b>. These are client-side values. <b>Never enter a service-role or secret key.</b></p><div class="field"><label>Supabase Project URL</label><input id="cfg-url" placeholder="https://your-project.supabase.co"></div><div class="field"><label>Publishable / anon key</label><textarea id="cfg-key" rows="4" placeholder="eyJ..."></textarea></div><button class="btn primary" onclick="saveConfig()">Connect Supabase</button><div class="notice">After connecting, the app will use Supabase Auth and database permissions instead of a device PIN.</div></section>`}
-function adminLogin(){return `<section class="card"><div class="eyebrow">SECURE ADMIN LOGIN</div><h2>Administrator sign in</h2><p>Use the email and password of the account that was added to the Supabase <b>admins</b> table. There is no admin PIN stored in this APK.</p><div class="field"><label>Email</label><input id="login-email" type="email" autocomplete="username"></div><div class="field"><label>Password</label><input id="login-pass" type="password" autocomplete="current-password"></div><button class="btn primary" onclick="doAdminLogin()">Sign in securely</button><button class="btn light" onclick="go('home')">Cancel</button></section>`}
-function adminPanel(){const pendingDownloads=(state.allDownloadRequests||[]).filter(r=>r.status==='pending').length;return `<div class="admin-head"><div><div class="eyebrow">ONLINE CONTROL CENTRE</div><h2>Admin Dashboard</h2><div class="small">${esc(session?.user?.email||'Administrator')}</div></div><button class="btn light" onclick="signout()">Sign out</button></div><section class="card admin-message-banner"><div class="eyebrow">ADMIN MESSAGES</div><h3>💬 Messages & Replies</h3><p>Member messages and administrator replies are available here.</p><button class="btn primary" onclick="adminSection('chat')">Open Messages & Replies</button></section><section class="admin-quick"><button class="admin-quick-card" onclick="adminSection('chat')"><b>💬 Messages & Replies</b><span>Read member messages and send replies directly.</span></button><button class="admin-quick-card" onclick="adminSection('gallery')"><b>⬇ Download Approvals</b><span>${pendingDownloads} request${pendingDownloads===1?'':'s'} waiting for review.</span></button></section><div class="admin-tabs">${['members','projects','skills','gallery','settings','chat'].map(t=>`<button class="btn ${route==='admin-'+t?'primary':'light'}" onclick="adminSection('${t}')">${t==='chat'?'Messages & Replies':t}</button>`).join('')}</div>${route==='admin-members'?adminMembers():route==='admin-projects'?adminCollection('projects','Project'):route==='admin-skills'?adminCollection('skills','Skill'):route==='admin-gallery'?adminCollection('gallery','Gallery item'):route==='admin-chat'?adminChat():adminSettings()}`}
-function adminMembers(){const total=state.members.length,verified=state.members.filter(m=>m.verified).length;return `<section class="member-control"><div class="control-hero"><div><div class="eyebrow">ADMIN • MEMBER MANAGEMENT</div><h2>Member Control Centre</h2><p>Online changes apply to the shared GRAPEVINE database for every user.</p></div><button class="btn gold big" onclick="editMember()">＋ Add Member</button></div><div class="member-stats"><div class="stat-card"><strong>${total}</strong><span>Total Members</span></div><div class="stat-card"><strong>${verified}</strong><span>Verified</span></div><div class="stat-card"><strong>${total-verified}</strong><span>Unverified</span></div></div><div class="member-toolbar"><input id="memberSearchAdmin" placeholder="Search by member name or role" oninput="filterAdminMembers(this.value)"></div><div id="adminMemberList">${adminMemberRows(state.members)}</div></section>`}
-function adminMemberRows(arr){return arr.map(m=>`<article class="admin-member-card"><div class="admin-member-info"><img class="admin-avatar profile-photo" data-profile-id="${esc(m.id)}" data-photo-url="${esc(m.photo||'')}" src="assets/grapevine-logo.jpg" onerror="this.src='assets/grapevine-logo.jpg'"><div><div class="admin-member-name">${esc(m.name||'Unnamed Member')} ${m.verified?verifiedBadge():'<span class="unverified">Not verified</span>'}</div><div class="small">${esc(m.role||'No role assigned')}</div></div></div><div class="admin-member-actions"><button class="btn ${m.verified?'light':'gold'}" onclick="verifyMember('${m.id}',${!m.verified})">${m.verified?'Remove Badge':'Give Verification Badge'}</button><button class="btn light" onclick="editMember('${m.id}')">Edit Member</button><button class="btn danger" onclick="removeMember('${m.id}')">Remove Member</button></div></article>`).join('')||'<div class="empty">No members found.</div>'}
-function filterAdminMembers(q){const x=(q||'').toLowerCase(),el=document.getElementById('adminMemberList');if(el){el.innerHTML=adminMemberRows(state.members.filter(m=>(m.name+' '+m.role).toLowerCase().includes(x)));hydrateProfilePhotos().catch(()=>{})}}
-function adminCollection(key,label){const isGallery=key==='gallery';const base=`<div class="actions"><button class="btn gold" onclick="${isGallery?'openGalleryUpload()':`editCollection('${key}')`}">+ Add ${label}</button></div><div>${state[key].map(x=>`<div class="row"><div><b>${esc(x.title)}</b><div class="small">${esc(x.description||x.image||'')} ${isGallery?`• ${x.approved?'Showcase approved':'Pending showcase approval'} ${mediaIcon(x.media_type||'image')}`:''}</div></div><div class="actions">${isGallery&&!x.approved?`<button class="btn gold" onclick="approveGallery('${x.id}')">Approve showcase</button>`:''}<button class="btn light" onclick="editCollection('${key}','${x.id}')">Edit</button><button class="btn danger" onclick="removeItem('${key}','${x.id}')">Remove</button></div></div>`).join('')}</div>`;return isGallery?base+adminDownloadRequests():base}
-function adminDownloadRequests(){const list=Array.isArray(state.allDownloadRequests)?state.allDownloadRequests:[];return `<section class="card" style="margin-top:18px"><div class="eyebrow">DOWNLOAD APPROVALS</div><h3>Member download requests</h3><p class="small">Approve or reject individual member requests. Approval unlocks the Download button for that member only.</p>${list.length?list.map(r=>{const item=state.gallery.find(g=>String(g.id)===String(r.content_id));return `<div class="row"><div><b>${esc(item?.title||'Gallery media')}</b><div class="small">Member: ${esc(r.requester_name||r.requester_id||'Unknown')} • ${esc(r.status)}</div></div><div class="actions">${r.status==='pending'?`<button class="btn gold" onclick="reviewDownloadRequest('${r.id}','approved')">Approve download</button><button class="btn danger" onclick="reviewDownloadRequest('${r.id}','rejected')">Reject</button>`:''}</div></div>`}).join(''):'<div class="empty">No download requests yet.</div>'}</section>`}
-async function loadDownloadRequests(){if(!adminSession){state.allDownloadRequests=[];return}try{const rows=await dbGet('download_requests','select=id,content_id,requester_id,status,requested_at,reviewed_at&order=requested_at.desc');const profiles=await dbGet('profiles','select=id,name');const names=new Map((Array.isArray(profiles)?profiles:[]).map(p=>[String(p.id),p.name||'Member']));state.allDownloadRequests=(Array.isArray(rows)?rows:[]).map(r=>({...r,requester_name:names.get(String(r.requester_id))||r.requester_id||'Member'}))}catch{state.allDownloadRequests=[]}}
-async function reviewDownloadRequest(id,status){try{if(!adminSession)throw Error('Administrator session required');const rows=await dbPatch('download_requests','id=eq.'+encodeURIComponent(id),{status,reviewed_by:session.user.id,reviewed_at:new Date().toISOString()});if(!Array.isArray(rows)||!rows.length)throw Error('Download request was not changed');await sync();await loadDownloadRequests();render();toast(status==='approved'?'Download approved for the member':'Download request rejected')}catch(e){toast(friendly(e))}}
-async function approveGallery(id){try{if(!adminSession)throw Error('Administrator session required');const rows=await dbPatch('content_items','id=eq.'+encodeURIComponent(id),{approved:true});if(!Array.isArray(rows)||!rows.length)throw Error('Showcase approval failed');await sync();render();toast('Gallery media approved for viewing')}catch(e){toast(friendly(e))}}
-function adminSettings(){const s=state.settings;return `<div class="card"><h3>App-wide settings</h3>${['name','motto','description','email','phone','location'].map(k=>`<div class="field"><label>${k}</label><input id="set-${k}" value="${esc(s[k]||'')}"></div>`).join('')}<button class="btn primary" onclick="saveSettings()">Save changes online</button><button class="btn light" onclick="showConfigChange()">Change Supabase connection</button></div>`}
-function chat(){return `<div class="ai-tabs"><button class="btn primary" onclick="go('chat')">Team Chat</button><button class="btn gold" onclick="go('mafia-ai')">Mafia AI</button></div>${teamChat()}`}
-function teamChat(){if(!configured())return `<section class="card"><h2>Chat</h2><p>Connect Supabase first to use secure online chat.</p></section>`;if(!session)return chatLogin();return `<section class="card"><div class="eyebrow">GRAPEVINE CHAT</div><h2>Chat with the team</h2><p>Send a message to the GRAPEVINE administrators.</p><div id="chatMessages" class="chat-box"><div class="empty">Loading messages…</div></div><div class="field"><textarea id="chatInput" rows="3" placeholder="Write your message…"></textarea></div><button class="btn primary" onclick="sendChat(false)">Send message</button><button class="btn light" onclick="signout()">Sign out</button></section>`}
-
-function mafiaAI(){
-  if(!configured())return `<section class="card"><h2>Mafia AI</h2><p>Connect Supabase to use Mafia AI.</p></section>`;
-  if(!session?.access_token)return `<section class="card"><div class="eyebrow">POWERED BY MAFIA BOSS</div><h2>Mafia AI</h2><p>Sign in with your GRAPEVINE account to use Mafia AI and save your conversation history.</p><button class="btn primary" onclick="go('chat')">Sign in / Create account</button></section>`;
-  const adminTools=adminSession?`<div class="actions mafia-mode-tabs"><button class="btn ${mafiaHistoryMode==='mine'?'primary':'light'}" onclick="setMafiaHistoryMode('mine')">My Private AI</button><button class="btn ${mafiaHistoryMode==='members'?'primary':'light'}" onclick="setMafiaHistoryMode('members')">Member Histories</button></div><p class="small">${mafiaHistoryMode==='mine'?'Your private conversations. Members cannot view these chats.':'Read-only review of member conversations. Select a member chat to inspect it; replies are disabled.'}</p>`:'';
-  const isReadOnly=!!(adminSession&&mafiaOpenedOwnerId&&mafiaOpenedOwnerId!==session.user.id);
-  return `<section class="card mafia-card"><div class="eyebrow">POWERED BY MAFIA BOSS</div><h2>✦ ${adminSession?'Mafia AI • Admin':'Mafia AI'}</h2><p>${adminSession&&mafiaHistoryMode==='members'?'Review member AI conversations securely.':'Your AI assistant. Your conversation history is saved to your account.'}</p>${adminTools}<div class="actions"><button class="btn primary" onclick="newMafiaConversation()">＋ New ${adminSession&&mafiaHistoryMode==='mine'?'private ':''}conversation</button><button class="btn light" onclick="loadMafiaConversations()">↻ Refresh history</button></div><div id="mafiaHistory" class="mafia-history">Loading saved conversations…</div><div id="mafiaThread" class="chat-box mafia-thread"><div class="empty">Choose a conversation or start a new one.</div></div><div id="mafiaComposer" ${isReadOnly?'hidden':''}><div class="field"><textarea id="mafiaInput" rows="3" placeholder="Ask your private Mafia AI anything…"></textarea></div><div class="field"><label>Attach an image (optional)</label><input id="mafiaImage" type="file" accept="image/*"></div><div class="field"><label>Attach voice/audio (optional)</label><input id="mafiaAudio" type="file" accept="audio/*"></div><p class="small">You can ask about an image or attach an audio/voice recording. AI replies can be read aloud.</p><button class="btn primary" onclick="sendMafiaMessage()">Send to Mafia AI</button></div>${isReadOnly?'<p class="notice">Admin review mode: this member conversation is read-only.</p>':''}<div id="mafiaStatus" class="small"></div></section>`;
-}
-function setMafiaHistoryMode(mode){if(!adminSession)return toast('Administrator access required');mafiaHistoryMode=mode==='members'?'members':'mine';mafiaConversationId=null;mafiaOpenedOwnerId=null;render();loadMafiaConversations().catch(()=>{});}
-async function loadMafiaConversations(){
- const history=document.getElementById('mafiaHistory');if(!history||!session?.access_token)return;
- history.textContent='Loading saved conversations…';
- try{
-   const rows=await authFetch('/rest/v1/mafia_ai_conversations?select=id,title,owner_email,user_id,updated_at&order=updated_at.desc&limit=200');
-   mafiaConversationRows=Array.isArray(rows)?rows:[];
-   const list=adminSession&&mafiaHistoryMode==='members'?mafiaConversationRows.filter(c=>String(c.user_id)!==String(session.user.id)):mafiaConversationRows.filter(c=>String(c.user_id)===String(session.user.id));
-   if(!list.length){history.innerHTML=adminSession&&mafiaHistoryMode==='members'?'<p class="small">No member conversations found.</p>':'<p class="small">No private conversations yet. Choose New conversation to begin.</p>';return}
-   history.innerHTML=list.map(c=>`<div class="mafia-history-row"><button class="mafia-history-open" onclick="openMafiaConversation('${esc(c.id)}')">${esc(c.title||'New conversation')}${adminSession&&mafiaHistoryMode==='members'?`<small>${esc(c.owner_email||'Member account')}</small>`:''}</button>${adminSession&&mafiaHistoryMode==='members'?`<span class="tag">Read only</span>`:`<button class="btn danger mafia-history-delete" onclick="deleteMafiaConversation('${esc(c.id)}')">Delete</button>`}</div>`).join('');
-   if(mafiaConversationId&&list.some(c=>String(c.id)===String(mafiaConversationId)))await openMafiaConversation(mafiaConversationId);
- }catch(e){history.innerHTML=`<p class="small">Could not load history. Check that the Mafia AI SQL setup and access policies have been run. ${esc(friendly(e))}</p>`}
-}
-async function deleteMafiaConversation(id){
-  if(!session?.access_token||!session?.user?.id)return toast('Sign in to manage your Mafia AI history');
-  const meta=mafiaConversationRows.find(c=>String(c.id)===String(id));
-  if(!meta)return toast('Refresh history and select a listed conversation');
-  if(String(meta.user_id)!==String(session.user.id))return toast('You can delete only your own Mafia AI conversations');
-  if(!confirm('Delete this conversation and its messages permanently? Other conversations will not be affected.'))return;
-  try{
-    const rows=await dbDelete('mafia_ai_conversations','id=eq.'+encodeURIComponent(id));
-    if(!Array.isArray(rows)||rows.length===0)throw Error('The conversation was not deleted. Run the V26 Mafia AI delete policy in SUPABASE_SETUP.sql, then try again.');
-    if(String(mafiaConversationId)===String(id)){
-      mafiaConversationId=null;mafiaOpenedOwnerId=null;
+         mafiaConversationId=null;mafiaOpenedOwnerId=null;
       const thread=document.getElementById('mafiaThread');
       if(thread)thread.innerHTML='<div class="empty">Choose a conversation or start a new one.</div>';
     }
@@ -598,8 +529,8 @@ async function saveConfigValues(url,key){url=url.replace(/\/$/,'');if(!/^https:\
 async function adminSection(k){if(!adminSession){route='admin';render();return}route='admin-'+k;if(k==='gallery')await loadDownloadRequests();render();if(k==='chat')loadChat()}
 async function verifyMember(id,v){try{if(!session?.access_token||!adminSession)throw Error('Admin session required');const rows=await dbPatch('profiles','id=eq.'+encodeURIComponent(id),{verified:v,verified_at:v?new Date().toISOString():null});if(!Array.isArray(rows)||rows.length===0)throw Error('The member was not changed. Check that this account is an administrator.');const m=state.members.find(x=>String(x.id)===String(id));if(m){m.verified=v;save()}render();toast(v?'✓ Verification badge granted online':'Verification badge removed online')}catch(e){toast(friendly(e))}}
 async function removeMember(id){const m=state.members.find(x=>String(x.id)===String(id));if(!m||!confirm('Remove '+(m.name||'this member')+' from GRAPEVINE?'))return;try{await dbDelete('profiles','id=eq.'+encodeURIComponent(id));await sync();render();toast('Member removed online')}catch(e){toast(friendly(e))}}
-async function editMember(id){const m=id?state.members.find(x=>String(x.id)===String(id)):null;const item=m?{...m}:{id:null,name:'',role:'Software Engineering Team',bio:'',skills:[],verified:false,photo:''};openMemberForm(id?'Edit Member':'Add New Member',item,async x=>{try{const row={name:x.name,role:x.role,bio:x.bio,skills:(x.skills||[]).join(', '),photo_url:x.photo||null,verified:!!x.verified,verified_at:x.verified?new Date().toISOString():null};if(id)await dbPatch('profiles','id=eq.'+encodeURIComponent(id),row);else await dbInsert('profiles',row);await sync();render();toast('Member saved online')}catch(e){toast(friendly(e))}})}
-function openMemberForm(title,item,done){document.body.insertAdjacentHTML('beforeend',`<div class="modal" id="modal"><div class="sheet"><h2>${title}</h2><div class="field"><label>Name</label><input id="f-name" value="${esc(item.name)}"></div><div class="field"><label>Role</label><input id="f-role" value="${esc(item.role)}"></div><div class="field"><label>Bio</label><textarea id="f-bio">${esc(item.bio)}</textarea></div><div class="field"><label>Skills (comma separated)</label><input id="f-skills" value="${esc((item.skills||[]).join(', '))}"></div><div class="field"><label>Profile photo</label><div class="photo-picker"><img id="photo-preview" class="form-photo-preview" src="${esc(item.photo||'assets/grapevine-logo.jpg')}" onerror="this.src='assets/grapevine-logo.jpg'"><div><label class="photo-file-label" for="f-photo-file"><span class="photo-file-icon">📷</span><span>Choose / Upload Photo</span></label><input id="f-photo-file" class="native-photo-input" type="file" accept="image/*" aria-label="Choose member photo" onchange="previewMemberPhoto(this)"><div class="photo-help">Tap “Choose / Upload Photo” to open the phone gallery.</div><input id="f-photo" value="${esc(item.photo||'')}" placeholder="Photo URL (optional)" style="margin-top:8px"></div></div></div><div class="field"><label>Verification Badge</label><select id="f-verified"><option value="false" ${!item.verified?'selected':''}>Not Verified</option><option value="true" ${item.verified?'selected':''}>Verified ✓ — Give Badge</option></select></div><div class="actions"><button class="btn light" onclick="document.getElementById('modal').remove()">Cancel</button><button class="btn primary" onclick="submitMemberForm()">Save</button></div></div></div>`);window._memberForm={item,done}}
+async function editMember(id){const m=id?state.members.find(x=>String(x.id)===String(id)):null;const item=m?{...m}:{id:null,name:'',role:'Software Engineering Team',bio:'',skills:[],verified:false,photo:''};openMemberForm(id?'Edit Member':'Add New Member',item,async x=>{try{const row={name:x.name,role:x.role,bio:x.bio,skills:(x.skills||[]).join(', '),photo_url:x.photo||null,verified:!!x.verified,verified_at:x.verified?new Date().toISOString():null};if(id)await dbPatch('profiles','id=eq.'+encodeURIComponent(id),row);else await dbInsert('profiles',row);await sync();render();toast('Member saved online')}catch(e){toast(friendly(e))}})
+                              function openMemberForm(title,item,done){document.body.insertAdjacentHTML('beforeend',`<div class="modal" id="modal"><div class="sheet"><h2>${title}</h2><div class="field"><label>Name</label><input id="f-name" value="${esc(item.name)}"></div><div class="field"><label>Role</label><input id="f-role" value="${esc(item.role)}"></div><div class="field"><label>Bio</label><textarea id="f-bio">${esc(item.bio)}</textarea></div><div class="field"><label>Skills (comma separated)</label><input id="f-skills" value="${esc((item.skills||[]).join(', '))}"></div><div class="field"><label>Profile photo</label><div class="photo-picker"><img id="photo-preview" class="form-photo-preview" src="${esc(item.photo||'assets/grapevine-logo.jpg')}" onerror="this.src='assets/grapevine-logo.jpg'"><div><label class="photo-file-label" for="f-photo-file"><span class="photo-file-icon">📷</span><span>Choose / Upload Photo</span></label><input id="f-photo-file" class="native-photo-input" type="file" accept="image/*" aria-label="Choose member photo" onchange="previewMemberPhoto(this)"><div class="photo-help">Tap “Choose / Upload Photo” to open the phone gallery.</div><input id="f-photo" value="${esc(item.photo||'')}" placeholder="Photo URL (optional)" style="margin-top:8px"></div></div></div><div class="field"><label>Verification Badge</label><select id="f-verified"><option value="false" ${!item.verified?'selected':''}>Not Verified</option><option value="true" ${item.verified?'selected':''}>Verified ✓ — Give Badge</option></select></div><div class="actions"><button class="btn light" onclick="document.getElementById('modal').remove()">Cancel</button><button class="btn primary" onclick="submitMemberForm()">Save</button></div></div></div>`);window._memberForm={item,done}}
 function previewMemberPhoto(input){const file=input.files&&input.files[0];if(!file)return;const img=document.getElementById('photo-preview');if(img){if(img._previewUrl)URL.revokeObjectURL(img._previewUrl);img._previewUrl=URL.createObjectURL(file);img.src=img._previewUrl}}
 async function submitMemberForm(){
   const {item,done}=window._memberForm;
@@ -784,3 +715,17 @@ async function init(){render();if(configured()){if(session){try{adminSession=awa
 init();
 
 setTimeout(registerPushToken,1800);
+
+// Refresh the device-token registration after login, app resume, or reconnection.
+window.addEventListener('focus', () => {
+  registerPushToken();
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') registerPushToken();
+});
+
+window.addEventListener('online', () => {
+  registerPushToken();
+});
+}                              
