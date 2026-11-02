@@ -168,3 +168,5 @@
 @media(max-width:480px){.member-notification{flex-direction:column}.member-notification .btn{align-self:flex-start}}
 
 .mafia-speak{font-size:12px!important;padding:6px 9px!important;margin:2px 0 6px}
+
+.group-logo-editor{display:flex;align-items:center;gap:14px;flex-wrap:wrap}.group-logo-editor img{width:88px;height:88px;border-radius:16px;object-fit:cover;border:1px solid var(--line);background:#f3f0e9}.group-logo-editor input{max-width:100%;padding:8px}

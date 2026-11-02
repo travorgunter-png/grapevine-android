@@ -31,12 +31,13 @@ function load(){
 }
 function save(){localStorage.setItem('gv_state',JSON.stringify(state))}
 function online(){
+  // In Android, trust the native validated-internet check. Never fall back to
+  // navigator.onLine when the bridge exists but fails; that can show stale ONLINE.
   try{
-    if(!navigator.onLine)return false;
     if(window.GrapevineAndroid&&typeof window.GrapevineAndroid.isNetworkAvailable==='function')
-      return !!window.GrapevineAndroid.isNetworkAvailable();
-  }catch{}
-  return !!navigator.onLine;
+      return navigator.onLine!==false && window.GrapevineAndroid.isNetworkAvailable()===true;
+  }catch{return false}
+  return navigator.onLine===true;
 }
 function configured(){return !!(cfg.url&&cfg.key)}
 function uid(){try{if(window.crypto&&crypto.randomUUID)return crypto.randomUUID()}catch{}return Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)}
@@ -330,15 +331,20 @@ window.addEventListener('online',async()=>{await syncPendingGallery();await sync
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 // Android WebView may not emit a browser offline event consistently. Refresh the
 // visible connection label from the native network state as well.
-setInterval(()=>{
+function refreshConnectionIndicator(){
   const el=document.querySelector('.status');
   if(!el)return;
   const connected=online();
   el.classList.toggle('online',connected);
   el.classList.toggle('offline',!connected);
   el.textContent=connected?'ONLINE':'OFFLINE';
-},4000);
-function render(){document.getElementById('app').innerHTML=`<div class="shell"><header class="top"><div class="brand"><img src="assets/grapevine-logo.jpg"><div><b>${esc(state.settings.name)}</b><small>Software Engineering Group</small></div></div><span class="status ${online()?'online':'offline'}">${online()?'ONLINE':'OFFLINE'}</span></header><main class="content">${view()}</main>${bottom()}</div>`;hydrateProfilePhotos().catch(()=>{});hydrateGallery().catch(()=>{})}
+}
+setInterval(refreshConnectionIndicator,2000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshConnectionIndicator()});
+window.addEventListener('online',refreshConnectionIndicator);
+window.addEventListener('offline',refreshConnectionIndicator);
+function groupLogo(){return state.settings.logo_url||'assets/grapevine-logo.jpg'}
+function render(){document.getElementById('app').innerHTML=`<div class="shell"><header class="top"><div class="brand"><img src="${esc(groupLogo())}" onerror="this.src='assets/grapevine-logo.jpg'"><div><b>${esc(state.settings.name)}</b><small>Software Engineering Group</small></div></div><span class="status ${online()?'online':'offline'}">${online()?'ONLINE':'OFFLINE'}</span></header><main class="content">${view()}</main>${bottom()}</div>`;hydrateProfilePhotos().catch(()=>{});hydrateGallery().catch(()=>{})}
 function bottom(){return `<nav class="bottom">${[['home','⌂','Home'],['members','♙','Members'],['projects','▣','Projects'],['gallery','▧','Gallery'],['chat','💬','Chat'],['mafia-ai','✦','Mafia AI'],['admin','⚙','Admin']].map(x=>`<button class="${route===x[0]?'active':''}" onclick="go('${x[0]}')"><span>${x[1]}</span>${x[2]}</button>`).join('')}</nav>`}
 function view(){if(route==='mafia-ai')return mafiaAI();if(route==='members')return members();if(route==='projects')return projects();if(route==='gallery')return gallery();if(route==='chat')return chat();if(route==='admin'||route.startsWith('admin-'))return admin();return home()}
 async function loadMemberNotifications(){
@@ -362,7 +368,7 @@ async function markNotificationRead(id){
     await loadMemberNotifications();render();
   }catch(e){toast('Notification update failed: '+friendly(e))}
 }
-function home(){return `<section class="hero"><img src="assets/grapevine-logo.jpg"><div class="eyebrow">SOFTWARE ENGINEERING • CREATIVITY • TEAMWORK</div><h1>We Code. We Build. We Inspire.</h1><p>${esc(state.settings.description)}</p><p><b>${esc(state.settings.motto)}</b></p><div class="actions"><button class="btn gold" onclick="go('members')">Meet Members</button><button class="btn light" onclick="go('projects')">Explore Projects</button></div></section>${memberNotificationPanel()}<h2>GRAPEVINE at a glance</h2><div class="grid"><div class="card"><div class="stat">${state.members.length}</div><p>Members</p></div><div class="card"><div class="stat">${state.projects.length}</div><p>Projects</p></div><div class="card"><div class="stat">${state.skills.length}</div><p>Skills</p></div><div class="card"><div class="stat">${state.gallery.length}</div><p>Gallery items</p></div></div><section class="home-overview"><div class="card"><div class="eyebrow">WELCOME TO GRAPEVINE</div><h2 class="overview-title">A place to connect, learn, build and grow.</h2><p class="overview-copy">Discover our members, explore projects, share skills and stay connected with the GRAPEVINE community.</p><div class="home-quick"><button class="btn gold" onclick="go('members')">Members</button><button class="btn light" onclick="go('projects')">Projects</button><button class="btn light" onclick="go('gallery')">Gallery</button></div></div><div class="home-cards"><article class="home-feature"><div class="feature-icon">👥</div><h3>Community</h3><p>Meet people, see member profiles and discover what the team can do.</p></article><article class="home-feature"><div class="feature-icon">🛠️</div><h3>Projects</h3><p>Explore practical ideas, software projects and collaborative work.</p></article><article class="home-feature"><div class="feature-icon">📚</div><h3>Skills</h3><p>Learn from shared experience and find skills across the community.</p></article><article class="home-feature"><div class="feature-icon">✓</div><h3>Trusted profiles</h3><p>Administrators can give the official blue check badge to verified members.</p></article></div></section><section class="home-info"><div class="info-head"><div><div class="eyebrow">ABOUT US</div><h2>More about GRAPEVINE</h2></div><span class="tag verified">Community</span></div><div class="welcome-note"><h3>A connected engineering community</h3><p>GRAPEVINE brings software engineers and technology enthusiasts together to learn, build practical solutions, share skills and grow as a team.</p></div><div class="info-grid"><article class="info-card"><div class="info-icon">💻</div><h3>Build</h3><p>Turn ideas into useful software, projects and digital solutions.</p></article><article class="info-card"><div class="info-icon">🧠</div><h3>Learn</h3><p>Share knowledge, skills and experience across the team.</p></article><article class="info-card"><div class="info-icon">🤝</div><h3>Connect</h3><p>Meet members, discover their skills and collaborate on projects.</p></article><article class="info-card"><div class="info-icon">🚀</div><h3>Grow</h3><p>Create opportunities for teamwork, creativity and professional growth.</p></article></div><div class="home-strip"><div class="card"><strong>Members</strong><span>${online()?'Live data synced with Supabase':'Using saved offline data'}</span></div><div class="card"><strong>Verification</strong><span>Admin-verified members display the official badge.</span></div></div></section><div class="card" style="margin-top:14px"><div class="eyebrow">CONTACT</div><h3>${esc(state.settings.email)}</h3><p>${esc(state.settings.phone)} • ${esc(state.settings.location)}</p></div>`}
+function home(){return `<section class="hero"><img src="${esc(groupLogo())}" onerror="this.src='assets/grapevine-logo.jpg'"><div class="eyebrow">SOFTWARE ENGINEERING • CREATIVITY • TEAMWORK</div><h1>We Code. We Build. We Inspire.</h1><p>${esc(state.settings.description)}</p><p><b>${esc(state.settings.motto)}</b></p><div class="actions"><button class="btn gold" onclick="go('members')">Meet Members</button><button class="btn light" onclick="go('projects')">Explore Projects</button></div></section>${memberNotificationPanel()}<h2>GRAPEVINE at a glance</h2><div class="grid"><div class="card"><div class="stat">${state.members.length}</div><p>Members</p></div><div class="card"><div class="stat">${state.projects.length}</div><p>Projects</p></div><div class="card"><div class="stat">${state.skills.length}</div><p>Skills</p></div><div class="card"><div class="stat">${state.gallery.length}</div><p>Gallery items</p></div></div><section class="home-overview"><div class="card"><div class="eyebrow">WELCOME TO GRAPEVINE</div><h2 class="overview-title">A place to connect, learn, build and grow.</h2><p class="overview-copy">Discover our members, explore projects, share skills and stay connected with the GRAPEVINE community.</p><div class="home-quick"><button class="btn gold" onclick="go('members')">Members</button><button class="btn light" onclick="go('projects')">Projects</button><button class="btn light" onclick="go('gallery')">Gallery</button></div></div><div class="home-cards"><article class="home-feature"><div class="feature-icon">👥</div><h3>Community</h3><p>Meet people, see member profiles and discover what the team can do.</p></article><article class="home-feature"><div class="feature-icon">🛠️</div><h3>Projects</h3><p>Explore practical ideas, software projects and collaborative work.</p></article><article class="home-feature"><div class="feature-icon">📚</div><h3>Skills</h3><p>Learn from shared experience and find skills across the community.</p></article><article class="home-feature"><div class="feature-icon">✓</div><h3>Trusted profiles</h3><p>Administrators can give the official blue check badge to verified members.</p></article></div></section><section class="home-info"><div class="info-head"><div><div class="eyebrow">ABOUT US</div><h2>More about GRAPEVINE</h2></div><span class="tag verified">Community</span></div><div class="welcome-note"><h3>A connected engineering community</h3><p>GRAPEVINE brings software engineers and technology enthusiasts together to learn, build practical solutions, share skills and grow as a team.</p></div><div class="info-grid"><article class="info-card"><div class="info-icon">💻</div><h3>Build</h3><p>Turn ideas into useful software, projects and digital solutions.</p></article><article class="info-card"><div class="info-icon">🧠</div><h3>Learn</h3><p>Share knowledge, skills and experience across the team.</p></article><article class="info-card"><div class="info-icon">🤝</div><h3>Connect</h3><p>Meet members, discover their skills and collaborate on projects.</p></article><article class="info-card"><div class="info-icon">🚀</div><h3>Grow</h3><p>Create opportunities for teamwork, creativity and professional growth.</p></article></div><div class="home-strip"><div class="card"><strong>Members</strong><span>${online()?'Live data synced with Supabase':'Using saved offline data'}</span></div><div class="card"><strong>Verification</strong><span>Admin-verified members display the official badge.</span></div></div></section><div class="card" style="margin-top:14px"><div class="eyebrow">CONTACT</div><h3>${esc(state.settings.email)}</h3><p>${esc(state.settings.phone)} • ${esc(state.settings.location)}</p></div>`}
 function members(){return `<div class="admin-head"><div><div class="eyebrow">THE TEAM</div><h2>Members</h2></div></div><div class="search"><input placeholder="Search members" oninput="filterMembers(this.value)"></div><div id="memberList">${memberCards(state.members)}</div>`}
 function memberCards(arr){return arr.map(m=>`<article class="card member"><img class="photo profile-photo" data-profile-id="${esc(m.id)}" data-photo-url="${esc(m.photo||'')}" src="assets/grapevine-logo.jpg" onerror="this.src='assets/grapevine-logo.jpg'"><div class="member-main"><div class="member-name"><h3 style="margin:0">${esc(m.name)}</h3>${m.verified?verifiedBadge():''}</div><div class="small">${esc(m.role)}</div><p>${esc(m.bio)}</p><div>${(m.skills||[]).map(s=>`<span class="tag">${esc(s)}</span>`).join('')}</div></div></article>`).join('')||'<div class="empty">No members found.</div>'}
 function filterMembers(q){const x=(q||'').toLowerCase();document.getElementById('memberList').innerHTML=memberCards(state.members.filter(m=>(m.name+' '+m.role).toLowerCase().includes(x)));hydrateProfilePhotos().catch(()=>{})}
@@ -408,7 +414,7 @@ function adminDownloadRequests(){const list=Array.isArray(state.allDownloadReque
 async function loadDownloadRequests(){if(!adminSession){state.allDownloadRequests=[];return}try{const rows=await dbGet('download_requests','select=id,content_id,requester_id,status,requested_at,reviewed_at&order=requested_at.desc');const profiles=await dbGet('profiles','select=id,name');const names=new Map((Array.isArray(profiles)?profiles:[]).map(p=>[String(p.id),p.name||'Member']));state.allDownloadRequests=(Array.isArray(rows)?rows:[]).map(r=>({...r,requester_name:names.get(String(r.requester_id))||r.requester_id||'Member'}))}catch{state.allDownloadRequests=[]}}
 async function reviewDownloadRequest(id,status){try{if(!adminSession)throw Error('Administrator session required');const rows=await dbPatch('download_requests','id=eq.'+encodeURIComponent(id),{status,reviewed_by:session.user.id,reviewed_at:new Date().toISOString()});if(!Array.isArray(rows)||!rows.length)throw Error('Download request was not changed');await sync();await loadDownloadRequests();render();toast(status==='approved'?'Download approved for the member':'Download request rejected')}catch(e){toast(friendly(e))}}
 async function approveGallery(id){try{if(!adminSession)throw Error('Administrator session required');const rows=await dbPatch('content_items','id=eq.'+encodeURIComponent(id),{approved:true});if(!Array.isArray(rows)||!rows.length)throw Error('Showcase approval failed');await sync();render();toast('Gallery media approved for viewing')}catch(e){toast(friendly(e))}}
-function adminSettings(){const s=state.settings;return `<div class="card"><h3>App-wide settings</h3>${['name','motto','description','email','phone','location'].map(k=>`<div class="field"><label>${k}</label><input id="set-${k}" value="${esc(s[k]||'')}"></div>`).join('')}<button class="btn primary" onclick="saveSettings()">Save changes online</button><button class="btn light" onclick="showConfigChange()">Change Supabase connection</button></div>`}
+function adminSettings(){const s=state.settings;return `<div class="card"><div class="eyebrow">GROUP PROFILE</div><h3>Group Settings</h3><p>Manage the information and branding displayed to every Grapevine member.</p><div class="field"><label>Group logo</label><div class="group-logo-editor"><img id="group-logo-preview" src="${esc(groupLogo())}" onerror="this.src='assets/grapevine-logo.jpg'"><div><input id="set-logo-file" type="file" accept="image/*"><div class="small">Choose a JPG, PNG or WebP image (maximum 8 MB).</div></div></div></div>${[['name','Group name'],['motto','Motto'],['description','Group description'],['email','Contact email'],['phone','Contact phone'],['location','Location']].map(([k,label])=>`<div class="field"><label>${label}</label>${k==='description'?`<textarea id="set-${k}" rows="3">${esc(s[k]||'')}</textarea>`:`<input id="set-${k}" value="${esc(s[k]||'')}">`}</div>`).join('')}<div class="actions"><button class="btn primary" onclick="saveSettings()">Save Group Settings</button><button class="btn light" onclick="showConfigChange()">Supabase connection</button></div></div>`}
 function chat(){return `<div class="ai-tabs"><button class="btn primary" onclick="go('chat')">Team Chat</button><button class="btn gold" onclick="go('mafia-ai')">Mafia AI</button></div>${teamChat()}`}
 function teamChat(){if(!configured())return `<section class="card"><h2>Chat</h2><p>Connect Supabase first to use secure online chat.</p></section>`;if(!session)return chatLogin();return `<section class="card"><div class="eyebrow">GRAPEVINE CHAT</div><h2>Chat with the team</h2><p>Send a message to the GRAPEVINE administrators.</p><div id="chatMessages" class="chat-box"><div class="empty">Loading messages…</div></div><div class="field"><textarea id="chatInput" rows="3" placeholder="Write your message…"></textarea></div><button class="btn primary" onclick="sendChat(false)">Send message</button><button class="btn light" onclick="signout()">Sign out</button></section>`}
 
@@ -715,15 +721,31 @@ async function submitContentForm(){
 }
 async function saveSettings(){
   const s={...state.settings};
-  for(const k of Object.keys(s)){const el=document.getElementById('set-'+k);if(el)s[k]=el.value.trim()}
+  for(const k of ['name','motto','description','email','phone','location']){
+    const el=document.getElementById('set-'+k);
+    if(el)s[k]=el.value.trim();
+  }
   try{
-    if(!adminSession||!session?.access_token)throw Error('Administrator sign-in is required to change contact information');
+    if(!adminSession||!session?.access_token)throw Error('Administrator sign-in is required to change group settings');
+    const logoFile=document.getElementById('set-logo-file')?.files?.[0]||null;
+    if(logoFile){
+      if(!logoFile.type||!logoFile.type.startsWith('image/'))throw Error('Please choose a valid image file for the group logo');
+      if(logoFile.size>8*1024*1024)throw Error('Group logo is too large (maximum 8 MB)');
+      const safe=(logoFile.name||'group-logo').toLowerCase().replace(/[^a-z0-9._-]/g,'-');
+      const path='branding/'+Date.now()+'-'+safe;
+      const base=cfg.url.replace(/\/$/,'');
+      const upload=await fetch(base+'/storage/v1/object/gallery-media/'+path,{
+        method:'POST',headers:storageAuthHeaders({'Content-Type':logoFile.type,'Cache-Control':'3600','x-upsert':'true'}),body:logoFile
+      });
+      if(!upload.ok)throw Error(await storageError(upload,'Group logo upload failed (HTTP '+upload.status+')'));
+      s.logo_url=base+'/storage/v1/object/public/gallery-media/'+path+'?v='+Date.now();
+    }
     const rows=await dbPatch('site_settings','id=eq.1',{settings:s,updated_at:new Date().toISOString()});
     if(!Array.isArray(rows)||rows.length===0)throw Error('No settings row was updated. Check the Supabase site_settings row (id = 1) and administrator update policy.');
     state.settings=s;save();
     await loadRemote();
-    render();toast('Contact information and app settings saved online');
-  }catch(e){toast('Settings were not saved: '+friendly(e))}
+    render();toast('Group settings saved and published to members');
+  }catch(e){toast('Group settings were not saved: '+friendly(e))}
 }
 async function go(r){
   if(r==='admin'){
