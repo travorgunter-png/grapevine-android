@@ -30,15 +30,33 @@ function load(){
   }catch{return cloneDefault()}
 }
 function save(){localStorage.setItem('gv_state',JSON.stringify(state))}
+let grapevineBackendOnline=false;
+let grapevineConnectionCheckBusy=false;
 function online(){
-  // In Android, trust the native validated-internet check. Never fall back to
-  // navigator.onLine when the bridge exists but fails; that can show stale ONLINE.
-  try{
-    if(window.GrapevineAndroid&&typeof window.GrapevineAndroid.isNetworkAvailable==='function')
-      return navigator.onLine!==false && window.GrapevineAndroid.isNetworkAvailable()===true;
-  }catch{return false}
+  if(navigator.onLine===false)return false;
+  if(configured())return grapevineBackendOnline;
+  try{if(window.GrapevineAndroid&&typeof window.GrapevineAndroid.isNetworkAvailable==='function')return !!window.GrapevineAndroid.isNetworkAvailable()}catch{return false}
   return navigator.onLine===true;
 }
+async function checkGrapevineConnection(){
+  if(grapevineConnectionCheckBusy)return;
+  grapevineConnectionCheckBusy=true;
+  try{
+    if(navigator.onLine===false){grapevineBackendOnline=false;return}
+    if(configured()){
+      const controller=new AbortController();
+      const timeout=setTimeout(()=>controller.abort(),5000);
+      try{
+        const response=await fetch(cfg.url.replace(/\/$/,'')+'/auth/v1/health',{method:'GET',headers:{apikey:cfg.key},cache:'no-store',signal:controller.signal});
+        grapevineBackendOnline=response.ok;
+      }finally{clearTimeout(timeout)}
+    }else if(window.GrapevineAndroid&&typeof window.GrapevineAndroid.isNetworkAvailable==='function'){
+      grapevineBackendOnline=!!window.GrapevineAndroid.isNetworkAvailable();
+    }else{grapevineBackendOnline=navigator.onLine===true}
+  }catch{grapevineBackendOnline=false}
+  finally{grapevineConnectionCheckBusy=false;updateConnectionLabel()}
+}
+
 function configured(){return !!(cfg.url&&cfg.key)}
 function uid(){try{if(window.crypto&&crypto.randomUUID)return crypto.randomUUID()}catch{}return Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)}
 function esc(s=''){return String(s).replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]))}
@@ -321,7 +339,7 @@ async function loadRemote(){
   let changed=false;
   try{const profiles=await dbGet('profiles','select=*&order=created_at.asc');if(Array.isArray(profiles)){state.members=profiles.map(p=>({id:p.id,name:p.name,role:p.role||'Member',bio:p.bio||'',skills:typeof p.skills==='string'?p.skills.split(',').map(x=>x.trim()).filter(Boolean):(p.skills||[]),verified:(p.verified===true||p.verified===1||p.verified==='true'),photo:p.photo_url||''}));changed=true}}catch{}
   try{const settings=await dbGet('site_settings','select=*&id=eq.1');if(Array.isArray(settings)&&settings[0]?.settings)state.settings={...state.settings,...settings[0].settings};changed=true}catch{}
-  try{const content=await dbGet('content_items','select=*&order=created_at.asc');if(Array.isArray(content)){state.projects=content.filter(x=>x.kind==='project').map(x=>({id:x.id,title:x.title,description:x.description||'',tags:x.tags||[]}));state.skills=content.filter(x=>x.kind==='skill').map(x=>({id:x.id,title:x.title,description:x.description||''}));state.gallery=content.filter(x=>x.kind==='gallery').map(x=>({id:x.id,title:x.title,description:x.description||'',image:x.image_url||'',media_type:x.media_type||'image',approved:x.approved===true,uploaded_by:x.uploaded_by||null}));changed=true}}catch{}
+  try{const content=await dbGet('content_items','select=*&order=created_at.asc');if(Array.isArray(content)){state.projects=content.filter(x=>x.kind==='project').map(x=>({id:x.id,title:x.title,description:x.description||'',tags:x.tags||[],image:x.image_url||''}));state.skills=content.filter(x=>x.kind==='skill').map(x=>({id:x.id,title:x.title,description:x.description||''}));state.gallery=content.filter(x=>x.kind==='gallery').map(x=>({id:x.id,title:x.title,description:x.description||'',image:x.image_url||'',media_type:x.media_type||'image',approved:x.approved===true,uploaded_by:x.uploaded_by||null}));changed=true}}catch{}
   if(session?.user?.id){try{const rq=await dbGet('download_requests','select=id,content_id,requester_id,status,requested_at,reviewed_at&requester_id=eq.'+encodeURIComponent(session.user.id)+'&order=requested_at.desc');if(Array.isArray(rq))state.downloadRequests=rq}catch{} }
   save();await hydrateOfflineGalleryState();try{await syncPendingGallery()}catch{};return changed;
 }
@@ -331,7 +349,7 @@ window.addEventListener('online',async()=>{await syncPendingGallery();await sync
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 // Android WebView may not emit a browser offline event consistently. Refresh the
 // visible connection label from the native network state as well.
-function refreshConnectionIndicator(){
+function updateConnectionLabel(){
   const el=document.querySelector('.status');
   if(!el)return;
   const connected=online();
@@ -339,10 +357,12 @@ function refreshConnectionIndicator(){
   el.classList.toggle('offline',!connected);
   el.textContent=connected?'ONLINE':'OFFLINE';
 }
-setInterval(refreshConnectionIndicator,2000);
+function refreshConnectionIndicator(){updateConnectionLabel();checkGrapevineConnection().catch(()=>{grapevineBackendOnline=false;updateConnectionLabel()})}
+setInterval(refreshConnectionIndicator,6000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshConnectionIndicator()});
 window.addEventListener('online',refreshConnectionIndicator);
-window.addEventListener('offline',refreshConnectionIndicator);
+window.addEventListener('offline',()=>{grapevineBackendOnline=false;updateConnectionLabel()});
+refreshConnectionIndicator();
 function groupLogo(){return state.settings.logo_url||'assets/grapevine-logo.jpg'}
 function render(){document.getElementById('app').innerHTML=`<div class="shell"><header class="top"><div class="brand"><img src="${esc(groupLogo())}" onerror="this.src='assets/grapevine-logo.jpg'"><div><b>${esc(state.settings.name)}</b><small>Software Engineering Group</small></div></div><span class="status ${online()?'online':'offline'}">${online()?'ONLINE':'OFFLINE'}</span></header><main class="content">${view()}</main>${bottom()}</div>`;hydrateProfilePhotos().catch(()=>{});hydrateGallery().catch(()=>{})}
 function bottom(){return `<nav class="bottom">${[['home','⌂','Home'],['members','♙','Members'],['projects','▣','Projects'],['gallery','▧','Gallery'],['chat','💬','Chat'],['mafia-ai','✦','Mafia AI'],['admin','⚙','Admin']].map(x=>`<button class="${route===x[0]?'active':''}" onclick="go('${x[0]}')"><span>${x[1]}</span>${x[2]}</button>`).join('')}</nav>`}
@@ -372,7 +392,7 @@ function home(){return `<section class="hero"><img src="${esc(groupLogo())}" one
 function members(){return `<div class="admin-head"><div><div class="eyebrow">THE TEAM</div><h2>Members</h2></div></div><div class="search"><input placeholder="Search members" oninput="filterMembers(this.value)"></div><div id="memberList">${memberCards(state.members)}</div>`}
 function memberCards(arr){return arr.map(m=>`<article class="card member"><img class="photo profile-photo" data-profile-id="${esc(m.id)}" data-photo-url="${esc(m.photo||'')}" src="assets/grapevine-logo.jpg" onerror="this.src='assets/grapevine-logo.jpg'"><div class="member-main"><div class="member-name"><h3 style="margin:0">${esc(m.name)}</h3>${m.verified?verifiedBadge():''}</div><div class="small">${esc(m.role)}</div><p>${esc(m.bio)}</p><div>${(m.skills||[]).map(s=>`<span class="tag">${esc(s)}</span>`).join('')}</div></div></article>`).join('')||'<div class="empty">No members found.</div>'}
 function filterMembers(q){const x=(q||'').toLowerCase();document.getElementById('memberList').innerHTML=memberCards(state.members.filter(m=>(m.name+' '+m.role).toLowerCase().includes(x)));hydrateProfilePhotos().catch(()=>{})}
-function projects(){return `<div class="eyebrow">OUR WORK</div><h2>Projects</h2><div class="grid">${state.projects.map(p=>`<article class="card"><div class="eyebrow">PROJECT</div><h3>${esc(p.title)}</h3><p>${esc(p.description)}</p>${(p.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</article>`).join('')}</div>`}
+function projects(){return `<div class="eyebrow">OUR WORK</div><h2>Projects</h2><div class="grid">${state.projects.map(p=>`<article class="card project-card">${p.image?`<img class="project-cover" src="${esc(p.image)}" alt="${esc(p.title)}" loading="lazy">`:''}<div class="eyebrow">PROJECT</div><h3>${esc(p.title)}</h3><p>${esc(p.description)}</p>${(p.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</article>`).join('')}</div>`}
 function latestDownloadRequest(id){if(!Array.isArray(state.downloadRequests))return null;return state.downloadRequests.filter(r=>String(r.content_id)===String(id)).sort((a,b)=>new Date(b.requested_at||0)-new Date(a.requested_at||0))[0]||null}
 function gallery(){
   const canUpload=!!session;
@@ -682,7 +702,7 @@ async function removeItem(key,id){
 }
 async function editCollection(key,id){const existing=id?state[key].find(x=>String(x.id)===String(id)):null;const item=existing?{...existing}:{id:null,title:'',description:'',tags:[],image:''};const kind=key==='projects'?'project':key==='skills'?'skill':'gallery';openContentForm('Edit '+key.slice(0,-1),item,kind,async x=>{try{const row={kind,title:x.title,description:x.description||'',tags:x.tags||[],image_url:x.image||null};if(id)await dbPatch('content_items','id=eq.'+encodeURIComponent(id),row);else await dbInsert('content_items',row);await sync();render()}catch(e){toast(friendly(e))}})}
 function openGalleryUpload(){if(!session?.user?.id)return go('chat');const item={id:null,title:'',description:'',tags:[],image:''};document.body.insertAdjacentHTML('beforeend',`<div class="modal" id="modal"><div class="sheet"><div class="eyebrow">GALLERY SHOWCASE</div><h2>Upload Media</h2><p class="small">Choose one or more images, videos or audio files. ${adminSession?'Administrator uploads are published immediately.':'Member uploads are held for administrator approval.'}</p><div class="field"><label>Title</label><input id="f-title" placeholder="Showcase title"></div><div class="field"><label>Description</label><textarea id="f-description" placeholder="Describe this media"></textarea></div><div class="field"><label>Media files</label><input id="f-gallery-file" class="gallery-file-input" type="file" accept="image/*,video/*,audio/*" multiple aria-label="Choose gallery media"><div class="photo-help">Tap the file box to choose from your phone. Multiple files are supported.</div><div id="gallery-file-list" class="small"></div></div><div class="actions"><button class="btn light" onclick="document.getElementById('modal').remove()">Cancel</button><button class="btn primary" onclick="submitContentForm()">Upload Media</button></div></div></div>`);window._contentForm={item,done:null,kind:'gallery'};document.getElementById('f-gallery-file').addEventListener('change',function(){const files=[...this.files];document.getElementById('gallery-file-list').innerHTML=files.length?files.map(f=>`<div>✓ ${esc(f.name)} • ${mediaIcon(mediaKind(f))} • ${(f.size/1024/1024).toFixed(1)} MB</div>`).join(''):'No files selected.'})}
-function openContentForm(title,item,kind,done){document.body.insertAdjacentHTML('beforeend',`<div class="modal" id="modal"><div class="sheet"><h2>${title}</h2><div class="field"><label>Title</label><input id="f-title" value="${esc(item.title)}"></div><div class="field"><label>Description</label><textarea id="f-description">${esc(item.description||'')}</textarea></div><div class="field"><label>Tags</label><input id="f-tags" value="${esc((item.tags||[]).join(', '))}"></div>${kind==='gallery'?`<div class="field"><label>Showcase image</label><input id="f-gallery-file" class="gallery-file-input" type="file" accept="image/*,video/*,audio/*" multiple><div class="photo-help">Choose image, video or audio media.</div><div id="gallery-file-list" class="small"></div></div>`:''}<div class="actions"><button class="btn light" onclick="document.getElementById('modal').remove()">Cancel</button><button class="btn primary" onclick="submitContentForm()">Save</button></div></div></div>`);window._contentForm={item,done,kind};if(kind==='gallery')document.getElementById('f-gallery-file').addEventListener('change',function(){const files=[...this.files];document.getElementById('gallery-file-list').innerHTML=files.map(f=>`<div>✓ ${esc(f.name)} • ${mediaIcon(mediaKind(f))}</div>`).join('')})}
+function openContentForm(title,item,kind,done){document.body.insertAdjacentHTML('beforeend',`<div class="modal" id="modal"><div class="sheet"><h2>${title}</h2><div class="field"><label>Title</label><input id="f-title" value="${esc(item.title)}"></div><div class="field"><label>Description</label><textarea id="f-description">${esc(item.description||'')}</textarea></div><div class="field"><label>Tags</label><input id="f-tags" value="${esc((item.tags||[]).join(', '))}"></div>${kind==='gallery'?`<div class="field"><label>Showcase image</label><input id="f-gallery-file" class="gallery-file-input" type="file" accept="image/*,video/*,audio/*" multiple><div class="photo-help">Choose image, video or audio media.</div><div id="gallery-file-list" class="small"></div></div>`:kind==='project'?`<div class="field"><label>Project image</label>${item.image?`<img class="project-form-preview" src="${esc(item.image)}" alt="Current project image">`:''}<input id="f-project-file" class="gallery-file-input" type="file" accept="image/*"><div class="photo-help">Select a project cover image (JPG, PNG or WebP, maximum 50 MB). Leave empty to keep the current image.</div><div id="project-file-list" class="small"></div></div>`:''}<div class="actions"><button class="btn light" onclick="document.getElementById('modal').remove()">Cancel</button><button class="btn primary" onclick="submitContentForm()">Save</button></div></div></div>`);window._contentForm={item,done,kind};if(kind==='gallery')document.getElementById('f-gallery-file').addEventListener('change',function(){const files=[...this.files];document.getElementById('gallery-file-list').innerHTML=files.map(f=>`<div>✓ ${esc(f.name)} • ${mediaIcon(mediaKind(f))}</div>`).join('')});if(kind==='project')document.getElementById('f-project-file')?.addEventListener('change',function(){const file=this.files?.[0];document.getElementById('project-file-list').textContent=file?`Selected: ${file.name} • ${(file.size/1024/1024).toFixed(1)} MB`:''})}
 function previewGalleryImage(input){const file=input.files&&input.files[0];if(!file)return;const img=document.getElementById('gallery-preview');if(img){if(img._previewUrl)URL.revokeObjectURL(img._previewUrl);img._previewUrl=URL.createObjectURL(file);img.src=img._previewUrl}}
 async function submitContentForm(){
   const {item,done,kind}=window._contentForm||{};
@@ -715,6 +735,16 @@ async function submitContentForm(){
       render();
       toast(online()?(adminSession?'Media uploaded and published.':'Media uploaded. Waiting for administrator showcase approval.'):'Media saved on this device. It will upload when you are online.');
       return;
+    }
+    if(kind==='project') {
+      const file=document.getElementById('f-project-file')?.files?.[0]||null;
+      if(file){
+        if(!file.type||!file.type.startsWith('image/'))throw Error('Choose an image file for the project cover');
+        if(file.size>50*1024*1024)throw Error('Project image must be 50 MB or smaller');
+        if(!online())throw Error('Connect to the internet before uploading a project image');
+        if(!adminSession||!session?.access_token)throw Error('Administrator sign-in is required to upload project images');
+        await uploadGalleryBlob(item,file,true);
+      }
     }
     if(done){document.getElementById('modal')?.remove();await done(item);render()}
   }catch(e){toast('Gallery upload failed: '+friendly(e))}
