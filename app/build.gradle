@@ -1,0 +1,29 @@
+plugins {
+    id 'com.android.application'
+    id 'com.google.gms.google-services'
+}
+
+android {
+    namespace 'com.grapevine.app'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.grapevine.app'
+        minSdk 26
+        targetSdk 35
+        versionCode 28
+        versionName '28.0'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            shrinkResources false
+        }
+    }
+}
+
+dependencies {
+    implementation platform('com.google.firebase:firebase-bom:34.3.0')
+    implementation 'com.google.firebase:firebase-messaging'
+}
